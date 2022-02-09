@@ -106,6 +106,14 @@ let rec nfa_of_regexp r freshstate t =
   | Cat (r1, r2) -> let nfa1 = nfa_of_regexp r1 freshstate t in
                     let nfa2 = nfa_of_regexp r2 (snd nfa1) t in                  
                     (cat_nfa (fst nfa1) (fst nfa2)), (snd nfa2)
+  | Alt (reg1,reg2) -> let n1, fresh1 = nfa_of_regexp reg1 freshstate t in let n2, fresh2 = nfa_of_regexp reg2 fresh1 t in
+                        let n = alt_nfa n1 n2 in
+                        {nfa_states = fresh2::(fresh2+1)::n.nfa_states;
+                        nfa_initial = [fresh2];
+                        nfa_final = [fresh2+1, t];
+                        nfa_step = fun q -> if q=fresh2 then (epsilon_toward n.nfa_initial) else if List.exists ( fun e -> fst e = q) n.nfa_final then (None, fresh2+1)::(n.nfa_step q) else n.nfa_step q
+                          }, fresh2+2
+  | Star regexp -> let n, fresh = nfa_of_regexp regexp freshstate t in n, fresh
    | _ -> empty_nfa, freshstate
 
 (* Deterministic Finite Automaton (DFA) *)

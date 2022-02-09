@@ -19,7 +19,7 @@ type 'a set = 'a Set.t
      [string -> token option] est une fonction qui construit un token
      à partir d'une chaîne de caractères.
    - [nfa_step q] donne la liste des transitions depuis l'état [q] sous la
-     forme d'une liste [(charset, q')]. [charset] est l'ensemble des caractères
+     forme d'une liste [Traduction d’expressions rationnelles(charset, q')]. [charset] est l'ensemble des caractères
      qui permettent de prendre la transition vers l'état [q']. [charset] peut
      éventuellement être [None], ce qui indique une epsilon-transition. 
 *)
@@ -43,21 +43,46 @@ let empty_nfa =
     nfa_step = fun q -> [];
   }
 
+
+
+let rec epsilon_toward l =
+        match l with
+        |[] -> []
+        |a::r -> (None,a)::(epsilon_toward r)
+
+
 (* Concaténation de NFAs.  *)
 let cat_nfa n1 n2 =
-   (* TODO *)
-   empty_nfa
+   {
+    nfa_states = n1.nfa_states @ n2.nfa_states
+    nfa_initial = n1.nfa_initial
+    nfa_final = n2.nfa_final
+    nfa_step = fun q -> if (List.mem q n1.nfa_initial) then (epsilon_toward n2.nfa_inital)
+                else (n1.nfa_step q) @ (n2.nfa_step q)
+   }
+
+
+
 
 (* Alternatives de NFAs *)
 let alt_nfa n1 n2 =
-   (* TODO *)
-   empty_nfa
+   {
+           nfa_states = n1.nfa_states @ n2.nfa_states @ [List.fold_left (fun acc elt -> min acc elt ) 10000 n2.nfa_states] @ [List.fold_left (fun acc elt -> max acc elt) -99 n2.nfa_states]
+           nfa_inital = [List.fold_left (fun acc elt -> min acc elt ) 10000 n2.nfa_states]
+           nfa_final = [(List.fold_left (fun acc elt -> max acc elt) -99 n2.nfa_states)]
+           nfa_step = fun q -> if q = (List.fold_left (fun acc elt -> min acc elt ) 10000 n2.nfa_states) then epsilon_toward (n1.nfa_inital @ n2.nfa_inital)
+                               else if (List.mem q (n1.nfa_final @ n2.nfa_final)) then epsilon_toward (List.fold_left (fun acc elt -> max acc elt) -99 n2.nfa_states)
+                               else (n1.nfa_step q) @ (n2.nfa_step q)
+      
+   }
 
 (* Répétition de NFAs *)
 (* t est de type [string -> token option] *)
 let star_nfa n t =
-   (* TODO *)
-   empty_nfa
+   {
+        nfa_states = n1.nfa_states
+   
+   }
 
 
 (* [nfa_of_regexp r freshstate t] construit un NFA qui reconnaît le même langage

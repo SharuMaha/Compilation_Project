@@ -158,7 +158,7 @@ let epsilon_closure (n: nfa) (s: nfa_state) : nfa_state set =
           if (Set.mem s visited) then visited
           else
                 let eps_pos_tow = List.filter (fun a -> fst a=None) (n.nfa_step s) in let viss = Set.add s visited in
-         List.fold_left (fun acc elt -> traversal acc elt) (viss)  eps_pos_tow  
+         List.fold_left (fun acc elt -> let e=snd elt in traversal acc e) (viss) eps_pos_tow  
                  
   in
   traversal Set.empty s

@@ -163,8 +163,7 @@ let epsilon_closure (n: nfa) (s: nfa_state) : nfa_state set =
 (* [epsilon_closure_set n ls] calcule l'union des epsilon-fermeture de chacun
    des états du NFA [n] dans l'ensemble [ls]. *)
 let epsilon_closure_set (n: nfa) (ls: nfa_state set) : nfa_state set =
-   (* TODO *)
-   ls
+  Set.fold (fun e acc -> Set.union acc (epsilon_closure n e)) ls Set.empty
 
 (* [dfa_initial_state n] calcule l'état initial de l'automate déterminisé. *)
 let dfa_initial_state (n: nfa) : dfa_state =

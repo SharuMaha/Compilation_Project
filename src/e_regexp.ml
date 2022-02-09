@@ -121,16 +121,16 @@ let list_regexp : (regexp * (string -> token option)) list =
        | exception Invalid_argument _ -> Some (SYM_CHARACTER 'a')
     );
     (Cat (char_regexp '\'', Cat (char_regexp '\\',
-          Cat (char_range (char_list_of_string "\\tn0'"),
-               char_regexp '\''))),
+                                 Cat (char_range (char_list_of_string "\\tn0'"),
+                                      char_regexp '\''))),
      fun s -> match String.get s 2 with
-         | '\\' -> Some (SYM_CHARACTER '\\')
-         | 'n' -> Some (SYM_CHARACTER '\n')
-         | 't' -> Some (SYM_CHARACTER '\t')
-         | '\'' -> Some (SYM_CHARACTER '\'')
-         | '0' -> Some (SYM_CHARACTER 'a')
-         | _ -> None
-         | exception _ -> Some (SYM_CHARACTER 'a')
+       | '\\' -> Some (SYM_CHARACTER '\\')
+       | 'n' -> Some (SYM_CHARACTER '\n')
+       | 't' -> Some (SYM_CHARACTER '\t')
+       | '\'' -> Some (SYM_CHARACTER '\'')
+       | '0' -> Some (SYM_CHARACTER 'a')
+       | _ -> None
+       | exception _ -> Some (SYM_CHARACTER 'a')
     );
     (Cat (char_regexp '"',
           Cat (Star (

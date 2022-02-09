@@ -77,7 +77,11 @@ let alt_nfa n1 n2 =
 (* t est de type [string -> token option] *)
 let star_nfa n t =
    {
-        nfa_states = n1.nfa_states
+           nfa_states = n.nfa_states;
+           nfa_initial = List.map (fun x -> fst x) n.nfa_final;
+           nfa_final = n.nfa_final;
+           nfa_step = fun q -> if (List.exists ( fun e -> fst e = q) n.nfa_final) then (epsilon_toward n.nfa_initial) @ n.nfa_step q
+                               else n.nfa_step q
    
    }
 
@@ -99,7 +103,9 @@ let rec nfa_of_regexp r freshstate t =
                 nfa_final = [freshstate + 1, t];
                 nfa_step = fun q -> if q = freshstate then [(Some c, freshstate + 1)] else []
               }, freshstate + 2
-   (* TODO *)
+  | Cat (r1, r2) -> let nfa1 = nfa_of_regexp r1 freshstate t in
+                    let nfa2 = nfa_of_regexp r2 (snd nfa1) t in                  
+                    (cat_nfa (fst nfa1) (fst nfa2)), (snd nfa2)
    | _ -> empty_nfa, freshstate
 
 (* Deterministic Finite Automaton (DFA) *)

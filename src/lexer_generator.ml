@@ -170,8 +170,7 @@ let epsilon_closure_set (n: nfa) (ls: nfa_state set) : nfa_state set =
 
 (* [dfa_initial_state n] calcule l'état initial de l'automate déterminisé. *)
 let dfa_initial_state (n: nfa) : dfa_state =
-   (* TODO *)
-   Set.empty
+   epsilon_closure_set n (Set.of_list (n.nfa_initial))
 
 (* Construction de la table de transitions de l'automate DFA. *)
 
@@ -263,8 +262,9 @@ let priority t =
 (* [min_priority l] renvoie le token de [l] qui a la plus petite priorité, ou
    [None] si la liste [l] est vide. *)
 let min_priority (l: token list) : token option =
-   (* TODO *)
-   None
+        match l with
+        |[] -> None
+        | _ -> Some (List.fold(fun acc elt -> if (priority acc) > (priority elt) then elt else acc) SYM_EOF l)
 
 (* [dfa_final_states n dfa_states] renvoie la liste des états finaux du DFA,
    accompagnés du token qu'ils reconnaissent. *)

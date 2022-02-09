@@ -155,8 +155,11 @@ let epsilon_closure (n: nfa) (s: nfa_state) : nfa_state set =
   (* La fonction [traversal visited s] effectue un parcours de l'automate en
      partant de l'état [s], et en suivant uniquement les epsilon-transitions. *)
   let rec traversal (visited: nfa_state set) (s: nfa_state) : nfa_state set =
-         (* TODO *)
-         visited
+          if (Set.mem s visited) then visited
+          else
+                let eps_pos_tow = List.filter (fun a -> fst a=None) (n.nfa_step s) in let viss = Set.add s visited in
+         List.fold_left (fun acc elt -> traversal acc elt) (viss)  eps_pos_tow  
+                 
   in
   traversal Set.empty s
 

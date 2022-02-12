@@ -270,8 +270,9 @@ let min_priority (l: token list) : token option =
    accompagnés du token qu'ils reconnaissent. *)
 let dfa_final_states (n: nfa) (dfa_states: dfa_state list) :
   (dfa_state * (string -> token option)) list  =
-   (* TODO *)
-   []
+       let set_fin_nfa = Set.of_list n.nfa_final in
+
+       List.filter (fun elt -> !(Set.is_empty(intersect set_fin_nfa elt)) ) dfa_states
 
 (* Construction de la relation de transition du DFA. *)
 

@@ -23,7 +23,7 @@ open BatPrintf
 
 *)
 
-type tag = Tassign | Tif | Twhile | Tblock | Treturn | Tprint
+type tag = Tassign | Tif | Telse | Twhile | Tblock | Treturn | Tprint
          | Tint
          | Tadd | Tmul | Tdiv | Tmod | Txor | Tsub
          | Tclt | Tcgt | Tcle | Tcge | Tceq | Tne
@@ -49,6 +49,7 @@ type ast = (string * astfun) list
 let string_of_tag = function
   | Tassign -> "Tassign"
   | Tif -> "Tif"
+  | Telse -> "Telse"
   | Twhile -> "Twhile"
   | Tblock -> "Tblock"
   | Treturn -> "Treturn"

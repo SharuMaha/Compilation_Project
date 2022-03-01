@@ -4,7 +4,7 @@ CONF_OPTS=
 CONF_OPTS+=-l
 
 # Use ocamllex lexer
-#CONF_OPTS+=-L
+CONF_OPTS+=-L
 
 # Use alpaga parser
 CONF_OPTS+=-a

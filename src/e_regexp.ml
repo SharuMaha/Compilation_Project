@@ -74,7 +74,7 @@ let list_regexp : (regexp * (string -> token option)) list =
     (keyword_regexp "if", fun s -> Some (SYM_IF));
     (keyword_regexp "else", fun s -> Some (SYM_ELSE));
     (keyword_regexp "return",       fun s -> Some (SYM_RETURN));
-    (keyword_regexp "printf",       fun s -> Some (SYM_PRINT));
+    (keyword_regexp "print",       fun s -> Some (SYM_PRINT));
     (keyword_regexp "struct",       fun s -> Some (SYM_STRUCT));
     (keyword_regexp ".",       fun s -> Some (SYM_POINT));
     (keyword_regexp "+",       fun s -> Some (SYM_PLUS));
@@ -97,7 +97,8 @@ let list_regexp : (regexp * (string -> token option)) list =
     (keyword_regexp ">",       fun s -> Some (SYM_GT));
     (keyword_regexp "<=",       fun s -> Some (SYM_LEQ));
     (keyword_regexp ">=",       fun s -> Some (SYM_GEQ));
-    (identifier_material,       fun s -> Some (SYM_IDENTIFIER s));
+    (Cat(letter_regexp, Star(identifier_material)),fun s -> Some (SYM_IDENTIFIER s));
+
     (* end TODO *)
     (Cat(keyword_regexp "//",
          Cat(Star (char_range (List.filter (fun c -> c <> '\n') alphabet)),

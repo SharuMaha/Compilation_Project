@@ -114,7 +114,7 @@ let rec nfa_of_regexp r freshstate t =
                         nfa_step = fun q -> if q=fresh2 then (epsilon_toward n.nfa_initial) else if List.exists ( fun e -> fst e = q) n.nfa_final then (None, fresh2+1)::(n.nfa_step q) else n.nfa_step q
                           }, fresh2+2
   | Star regexp -> let n, fresh = nfa_of_regexp regexp freshstate t in n, fresh
-   | _ -> empty_nfa, freshstate
+
 
 (* Deterministic Finite Automaton (DFA) *)
 
@@ -226,8 +226,9 @@ let rec build_dfa_table (table: (dfa_state, (char * dfa_state) list) Hashtbl.t)
     (* [transitions] contient les transitions du DFA construites
      * à partir des transitions du NFA comme décrit auparavant *)
     let transitions : (char * dfa_state) list =
-         (* TODO *)
-         []
+      List.map (fun (c,qset) -> (c, epsilon_closure_set n qset)) (
+      assoc_merge_vals(
+      assoc_distribute_key( assoc_throw_none(Set.fold (fun e acc -> n.nfa_step e @ acc) ds []))))
       in
     Hashtbl.replace table ds transitions;
     List.iter (build_dfa_table table n) (List.map snd transitions)
@@ -266,13 +267,33 @@ let min_priority (l: token list) : token option =
         |[] -> None
         | _ -> Some (List.fold(fun acc elt -> if (priority acc) > (priority elt) then elt else acc) SYM_EOF l)
 
+let max_priority (l: token list) : token option =
+        match l with
+        |[] -> None
+        | _ -> Some (List.fold(fun acc elt -> if (priority acc) <= (priority elt) then elt else acc) SYM_VOID l)
+        
+
 (* [dfa_final_states n dfa_states] renvoie la liste des états finaux du DFA,
    accompagnés du token qu'ils reconnaissent. *)
 let dfa_final_states (n: nfa) (dfa_states: dfa_state list) :
   (dfa_state * (string -> token option)) list  =
-       let set_fin_nfa = Set.of_list n.nfa_final in
+        (*let nfa_final_wo_tok = Set.of_list (map (fun elt -> fst elt) n.nfa_final) in
+                let list_inter = map (fun elt -> (Set.intersect nfa_final_wo_tok elt)) dfa_states in
+                        let list_inter_flt = List.filter (fun elt -> (Set.cardinal elt)!=0) list_inter in
+                          let give_token(dfs) =
+                            let nfa_mem = List.filter (fun elt -> Set.mem elt dfs) n.nfa_final in
+                              let funcimm arg elt = match (snd elt) with | Some c -> c arg in
+                              let applitok stat = max_priority (map (fun elt -> funcimm stat elt) nfa_mem) in
+                              [] *)
+          List.filter_map (fun dfa_s ->
+    let list_fun_tok = List.filter_map (fun (nfa_s,f) -> if Set.mem nfa_s dfa_s then Some f else None ) n.nfa_final in
+      if List.is_empty list_fun_tok then (* the state is not final *) None else
+      let f s = min_priority (List.filter_map (fun g -> g s) list_fun_tok)
+      in Some (dfa_s, f)
+  ) dfa_states
 
-       List.filter (fun elt -> !(Set.is_empty(intersect set_fin_nfa elt)) ) dfa_states
+
+
 
 (* Construction de la relation de transition du DFA. *)
 
@@ -280,8 +301,9 @@ let dfa_final_states (n: nfa) (dfa_states: dfa_state list) :
    est la table générée par [build_dfa_table], définie ci-dessus. *)
 let make_dfa_step (table: (dfa_state, (char * dfa_state) list) Hashtbl.t) =
   fun (q: dfa_state) (a: char) ->
-   (* TODO *)
-   None
+   let transition_opt = Hashtbl.find_option table q in
+   Option.bind transition_opt (fun transition -> Option.bind (List.find_opt (fun e -> fst e = a) transition) (fun s -> Some (snd s) ))
+
 
 (* Finalement, on assemble tous ces morceaux pour construire l'automate. La
    fonction [dfa_of_nfa n] vous est grâcieusement offerte. *)
@@ -348,8 +370,23 @@ let tokenize_one (d : dfa) (w: char list) : lexer_result * char list =
   let rec recognize (q: dfa_state) (w: char list)
       (current_token: char list) (last_accepted: lexer_result * char list)
     : lexer_result * char list =
-         (* TODO *)
-         last_accepted
+(*            let posState = dfa <- dfa.step q w[0] in
+            if (posState = None) then 
+                    let last_accepted= (LRskip, w)
+            else
+                    let last_accepted= (LRtoken,w)
+*)                    
+      let last_accepted = match List.find_opt (fun e -> fst e = Set.empty) d.dfa_final with
+      | None -> last_accepted
+      | Some (s, f) -> match f (string_of_char_list (List.rev current_token)) with
+                    | None -> (LRskip, w)
+                    | Some token -> (LRtoken token, w)
+    in match w with
+        | [] -> last_accepted
+        | h::t -> match d.dfa_step q h with
+                  | None -> last_accepted
+                  | Some next_q -> recognize next_q t (h::current_token) last_accepted
+
   in
   recognize d.dfa_initial w [] (LRerror, w)
 

@@ -12,18 +12,32 @@ let binop_bool_to_int f x y = if f x y then 1 else 0
    et [y]. *)
 let eval_binop (b: binop) : int -> int -> int =
   match b with
-   | _ -> fun x y -> 0
+   |Eadd -> fun x y -> x+y
+   |Emul -> fun x y -> x*y
+   |Emod -> fun x y -> x mod y
+   |Exor -> fun x y -> x lxor y
+   |Ediv -> fun x y -> x/y
+   |Esub -> fun x y -> x-y
+   |Eclt -> fun x y -> binop_bool_to_int (fun a b -> a<b) x y
+   |Ecle -> fun x y -> binop_bool_to_int (fun a b -> a<=b) x y
+   |Ecgt -> fun x y -> binop_bool_to_int (fun a b -> a>b) x y
+   |Ecge -> fun x y -> binop_bool_to_int (fun a b -> a>=b) x y
+   |Eceq -> fun x y -> binop_bool_to_int (fun a b -> a=b) x y
+   |Ecne -> fun x y -> binop_bool_to_int (fun a b -> a<>b) x y 
 
 (* [eval_unop u x] évalue l'opération unaire [u] sur l'argument [x]. *)
 let eval_unop (u: unop) : int -> int =
   match u with
-   | _ -> fun x -> 0
+   |Eneg -> fun x -> -x
 
 (* [eval_eexpr st e] évalue l'expression [e] dans l'état [st]. Renvoie une
    erreur si besoin. *)
 let rec eval_eexpr st (e : expr) : int res =
-   Error "eval_eexpr not implemented yet."
-
+   match e with
+   |Eunop(un,exp) -> eval_eexpr st exp >>= fun evaleres -> OK(eval_unop un evaleres)
+   |Eint(inte) -> OK inte
+   |Evar(s) -> (match Hashtbl.find_option st.env s with |Some intres -> OK(intres) |_ -> failwith "String error")
+   |Ebinop(bop,e1,e2) ->eval_eexpr st e1 >>= fun e1res -> eval_eexpr st e2 >>= fun e2res -> OK (eval_binop bop e1res e2res)
 (* [eval_einstr oc st ins] évalue l'instrution [ins] en partant de l'état [st].
 
    Le paramètre [oc] est un "output channel", dans lequel la fonction "print"
@@ -38,7 +52,14 @@ let rec eval_eexpr st (e : expr) : int res =
    - [st'] est l'état mis à jour. *)
 let rec eval_einstr oc (st: int state) (ins: instr) :
   (int option * int state) res =
-   Error "eval_einstr not implemented yet."
+   match ins with
+   |Iassign(str,exp) -> eval_eexpr st exp>>= fun intres -> let x=Hashtbl.replace st.env str intres in OK(None,st)
+   |Iif(exp,ins1,ins2) -> eval_eexpr st exp >>= fun ifres -> (match ifres with |0 -> eval_einstr oc st ins1 |_ -> eval_einstr oc st ins2)
+   |Iwhile(exp, ins1) -> eval_eexpr st exp >>= fun whileres -> (match whileres with |0 ->OK(None, st) |_-> eval_einstr oc st ins1)
+   |Iblock(instrl) -> List.fold_left (fun acc elt -> (match acc with |OK (intopt,st1) ->  eval_einstr oc st1 elt|_ -> failwith "oulah, tu vas t'amuser a debugger ca")) (OK(None,st)) instrl 
+   |Ireturn(exp) -> eval_eexpr st exp >>= fun expres -> OK(Some expres, st) 
+   |Iprint(exp) -> eval_eexpr st exp >>= fun expres -> let x=Printf.fprintf (oc expres) in OK(None,st)
+(*   |Iprint(exp) -> OK(None,st) *)
 
 (* [eval_efun oc st f fname vargs] évalue la fonction [f] (dont le nom est
    [fname]) en partant de l'état [st], avec les arguments [vargs].

@@ -18,7 +18,7 @@ let dead_assign_elimination_fun ({ cfgfunargs; cfgfunbody; cfgentry } as f: cfg_
   let cfgfunbody =
     Hashtbl.map (fun (n: int) (m: cfg_node) ->
         match m with
-           (* TODO *)
+        |Cassign(str,expr,i) ->let x = live_after_node f.cfgfunbody n (live_cfg_fun f) in if Set.mem str x then Cassign(str,expr,i) else let u = (changed:=true) in Cnop(i)
         | _ -> m
       ) cfgfunbody in
   ({ f with cfgfunbody }, !changed )
@@ -27,8 +27,7 @@ let dead_assign_elimination_fun ({ cfgfunargs; cfgfunbody; cfgentry } as f: cfg_
    notamment sur le fichier de test [basic/useless_assigns.e]. *)
 let rec iter_dead_assign_elimination_fun f =
   let f, c = dead_assign_elimination_fun f in
-   (* TODO *)
-   f
+   if c then iter_dead_assign_elimination_fun f else f
 
 let dead_assign_elimination_gdef = function
     Gfun f -> Gfun (iter_dead_assign_elimination_fun f)

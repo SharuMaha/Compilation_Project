@@ -14,8 +14,7 @@ open Options
    Si le nœud [n] contient [Cnop s], alors [(n,s)] devrait être dans le résultat.
 *)
 let nop_transitions (cfgfunbody: (int, cfg_node) Hashtbl.t) : (int * int) list =
-   (* TODO *)
-   []
+        Hashtbl.fold (fun key value acc -> match value with |Cnop(s) -> acc @ [(key,s)] |_ -> acc) cfgfunbody []
 
 
 (* [follow n l visited] donne le premier successeur à partir de [n] qui ne soit

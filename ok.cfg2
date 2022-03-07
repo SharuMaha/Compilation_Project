@@ -1,0 +1,14 @@
+digraph G{
+subgraph cluster_main {
+ label="main";
+n_main_2 [label="nop" xlabel="2" shape=rectangle];
+n_main_2 -> n_main_1
+n_main_3 [label="nop" xlabel="3" shape=rectangle];
+n_main_3 -> n_main_2
+n_main_4 [label="nop" xlabel="4" shape=rectangle peripheries=2];
+n_main_4 -> n_main_3
+n_main_1 [label="return 1" xlabel="1" shape=rectangle];
+}
+
+
+}

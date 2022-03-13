@@ -26,9 +26,8 @@ let nop_transitions (cfgfunbody: (int, cfg_node) Hashtbl.t) : (int * int) list =
    L'ensemble [visited] est utilisé pour éviter les boucles.
    *)
 let rec follow (n: int) (l: (int * int) list) (visited: int Set.t) : int =
-   (* TODO *)
-   n
-
+(*        if Set.mem n visited then n else match (List.find_opt n (List.map (fun x -> fst x) l)) with |None -> n |Some l -> follow (snd (List.find_first (fun c -> if (fst c)=n then true else false) l))  l visited *)
+        n
 (* [nop_transitions_closed] contient la liste [(n,s)] telle que l'instruction au
    nœud [n] est le début d'une chaîne de NOPs qui termine au nœud [s]. Les
    enseignants du cours de compiilation sont heureux de vous offrir cette

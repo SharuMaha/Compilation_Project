@@ -275,22 +275,21 @@ let max_priority (l: token list) : token option =
 
 (* [dfa_final_states n dfa_states] renvoie la liste des états finaux du DFA,
    accompagnés du token qu'ils reconnaissent. *)
+
 let dfa_final_states (n: nfa) (dfa_states: dfa_state list) :
   (dfa_state * (string -> token option)) list  =
-        (*let nfa_final_wo_tok = Set.of_list (map (fun elt -> fst elt) n.nfa_final) in
-                let list_inter = map (fun elt -> (Set.intersect nfa_final_wo_tok elt)) dfa_states in
-                        let list_inter_flt = List.filter (fun elt -> (Set.cardinal elt)!=0) list_inter in
-                          let give_token(dfs) =
-                            let nfa_mem = List.filter (fun elt -> Set.mem elt dfs) n.nfa_final in
-                              let funcimm arg elt = match (snd elt) with | Some c -> c arg in
-                              let applitok stat = max_priority (map (fun elt -> funcimm stat elt) nfa_mem) in
-                              [] *)
+(*          let nfa_str state = List.filter_map (fun (elt, fu) -> if Set.mem elt state then Some f else Non) n.nfa_final in
+          if List.is_empty nfa_str state then None else
+                  let true_f x = min_priority (List.filter_map (fun m -> m x) nfa_str) in
+
+                  List.filter_map (fun state -> Some( *)
+
           List.filter_map (fun dfa_s ->
     let list_fun_tok = List.filter_map (fun (nfa_s,f) -> if Set.mem nfa_s dfa_s then Some f else None ) n.nfa_final in
       if List.is_empty list_fun_tok then (* the state is not final *) None else
       let f s = min_priority (List.filter_map (fun g -> g s) list_fun_tok)
       in Some (dfa_s, f)
-  ) dfa_states
+  ) dfa_states 
 
 
 

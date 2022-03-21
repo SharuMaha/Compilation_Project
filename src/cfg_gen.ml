@@ -25,6 +25,8 @@ let rec cfg_expr_of_eexpr (e: Elang.expr) : expr res =
   | Elang.Eint i -> OK (Eint i)
   | Elang.Evar v ->
     OK (Evar v)
+  | Elang.Ecall (str,argl) -> let matcheur x = match cfg_expr_of_eexpr x with |OK v -> v |_ -> failwith "probleme pour convertir argument d'un ecall de Eexpr en ecall de Cfg" in OK ( Ecall (str, List.map matcheur argl))
+
 
 (* [cfg_node_of_einstr next cfg succ i] builds the CFG node(s) that correspond
    to the E instruction [i].
@@ -70,6 +72,8 @@ let rec cfg_node_of_einstr (next: int) (cfg : (int, cfg_node) Hashtbl.t)
     cfg_expr_of_eexpr e >>= fun e ->
     Hashtbl.replace cfg next (Cprint (e,succ));
     OK (next, next + 1)
+  | Elang.Icall (str, argl) -> let matcheur x = match cfg_expr_of_eexpr x with |OK v -> v |_ -> failwith "probleme pour convertir argument d'un ecall de Eexpr en ecall de Cfg" in let expr = Ccall (str, List.map matcheur argl, succ) in Hashtbl.replace cfg next expr; OK(next,next+1)
+
 
 (* Some nodes may be unreachable after the CFG is entirely generated. The
    [reachable_nodes n cfg] constructs the set of node identifiers that are
@@ -86,6 +90,7 @@ let rec reachable_nodes n (cfg: (int,cfg_node) Hashtbl.t) =
       | Some (Creturn _) -> reach
       | Some (Ccmp (_, s1, s2)) ->
         reachable_aux s1 (reachable_aux s2 reach)
+      | Some (Ccall (_,_,s)) -> reachable_aux s reach
   in reachable_aux n Set.empty
 
 (* [cfg_fun_of_efun f] builds the CFG for E function [f]. *)

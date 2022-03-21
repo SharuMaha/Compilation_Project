@@ -49,8 +49,10 @@ let rec make_eexpr_of_ast (a: tree) : expr res =
     | Node (Tneg,[e1]) -> make_eexpr_of_ast e1 >>= fun e1res ->  OK(Eunop(Eneg, e1res))
     | StringLeaf(a) -> OK(Evar(a))
     | IntLeaf(a) -> OK(Eint(a))
-    | _ -> Error (Printf.sprintf "Unacceptable ast in make_eexpr_of_ast %s"
-                    (string_of_ast a))
+    | Node(Tcall,[StringLeaf(f);Node(Targs, argl)]) -> let get_expr x = match (make_eexpr_of_ast x) with |OK v -> v |_ -> failwith "oops error with args of call"
+                                        in  OK(Ecall(f,List.map get_expr argl))
+    | _ -> failwith "Unacceptable ast in make_eexpr_of_ast %s"
+                    (string_of_ast a)
   in
   match res with
     OK o -> res
@@ -62,12 +64,15 @@ let rec make_einstr_of_ast (a: tree) : instr res =
     |Node(Tassign, [e1]) -> make_einstr_of_ast e1
     |Node(Tassignvar,StringLeaf(a)::exp::[]) -> make_eexpr_of_ast exp >>= fun expres -> OK(Iassign(a,expres))
     |Node(Twhile, [e1;e2]) -> make_eexpr_of_ast e1 >>= fun e1res -> make_einstr_of_ast e2 >>= fun e2res -> OK(Iwhile(e1res,e2res))
-    |Node(Tblock,linstr) ->let get_instr x = match (make_einstr_of_ast x) with |OK v -> v |_ -> Ireturn(Evar("ERROR"))
+    |Node(Tblock,linstr) ->let get_instr x = match (make_einstr_of_ast x) with |OK v -> v |_ -> failwith "Erreur avec une instr du block"
                            in  OK(Iblock(List.map get_instr linstr))
     |Node(Treturn, [e]) ->make_eexpr_of_ast e >>= fun eres -> OK(Ireturn(eres))
     |Node(Tprint, [e]) ->make_eexpr_of_ast e >>= fun eres -> OK(Iprint(eres))
     |Node(Tif, cond::prem::[]) -> make_eexpr_of_ast cond >>= fun condres -> make_einstr_of_ast prem >>= fun premres -> OK(Iif(condres,premres,Iblock([])))
     |Node(Tif, cond::prem::sec::[]) ->make_eexpr_of_ast cond >>= fun condres -> make_einstr_of_ast prem >>= fun premres -> make_einstr_of_ast sec >>= fun secres -> OK(Iif(condres, premres, secres))
+
+    |Node(Tcall,[StringLeaf(f);Node(Targs, argl)]) -> let get_expr x = match (make_eexpr_of_ast x) with |OK v -> v |_ -> failwith "oops error with args of call"
+                                      in  OK(Icall(f,List.map get_expr argl))
 
 
     | _ -> Error (Printf.sprintf "Unacceptable ast in make_einstr_of_ast %s"

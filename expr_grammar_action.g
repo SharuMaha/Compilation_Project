@@ -10,6 +10,8 @@ non-terminals ADD_EXPRS ADD_EXPR
 non-terminals MUL_EXPRS MUL_EXPR
 non-terminals CMP_EXPRS CMP_EXPR
 non-terminals EQ_EXPRS EQ_EXPR
+non-terminals LCALLPARAMS CALLREST_PARAMS
+non-terminals ASSIGN_OR_CALL NOTHING_OR_CALL
 axiom S
 {
 
@@ -19,6 +21,10 @@ axiom S
   open BatBuffer
   open Batteries
   open Utils
+
+  type call_me_maybe =
+	| CallMe of tree
+	| Dont of tree
 
   let rec resolve_associativity (term : Ast.tree) other : Ast.tree =
        	match other with
@@ -36,13 +42,21 @@ LPARAMS -> SYM_IDENTIFIER REST_PARAMS { Node(Targ, [StringLeaf($1)]) :: $2 }
 LPARAMS -> {[]}
 REST_PARAMS -> SYM_COMMA SYM_IDENTIFIER REST_PARAMS { Node(Targ, [StringLeaf($2)]) :: $3 }
 REST_PARAMS -> {[]}
-INSTR -> SYM_IDENTIFIER SYM_ASSIGN EXPR SYM_SEMICOLON {Node(Tassign, [Node(Tassignvar, StringLeaf($1)::[$3])])}
+
+LCALLPARAMS -> EXPR CALLREST_PARAMS { $1::$2 }
+LCALLPARAMS -> {[]}
+CALLREST_PARAMS -> SYM_COMMA EXPR CALLREST_PARAMS { $2::$3 }
+CALLREST_PARAMS -> {[]}
+
+INSTR -> SYM_IDENTIFIER ASSIGN_OR_CALL {match $2 with |CallMe(t1) -> Node(Tcall, StringLeaf($1)::t1::[]) |Dont(t2) -> Node(Tassign, [Node(Tassignvar, StringLeaf($1)::[t2])]) }
+ASSIGN_OR_CALL -> SYM_ASSIGN EXPR SYM_SEMICOLON {Dont($2)}
+ASSIGN_OR_CALL -> SYM_LPARENTHESIS LCALLPARAMS SYM_RPARENTHESIS SYM_SEMICOLON { CallMe(Node(Targs, $2))}
+
 INSTR -> SYM_IF SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS BLOC ELSE {Node(Tif, $3::$5::$6)}
 INSTR -> SYM_WHILE SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS INSTR {Node(Twhile, $3::$5::[])}
 INSTR -> SYM_RETURN EXPR SYM_SEMICOLON {Node(Treturn, [$2])}
 INSTR -> SYM_PRINT EXPR SYM_SEMICOLON {Node(Tprint, [$2])}
 INSTR -> BLOC {$1}
-
 
 EXPR -> EQ_EXPR EQ_EXPRS {resolve_associativity $1 $2}
 EQ_EXPR -> CMP_EXPR CMP_EXPRS {resolve_associativity $1 $2}
@@ -51,8 +65,12 @@ ADD_EXPR -> MUL_EXPR MUL_EXPRS {resolve_associativity $1 $2}
 MUL_EXPR -> FACTOR {$1}
 MUL_EXPR -> SYM_MINUS FACTOR {Node(Tneg, [$2])}
 FACTOR -> SYM_INTEGER {IntLeaf($1)}
-FACTOR -> SYM_IDENTIFIER {StringLeaf($1)}
 FACTOR -> SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS {$2}
+
+FACTOR -> SYM_IDENTIFIER NOTHING_OR_CALL {match $2 with |Dont(t1) -> StringLeaf($1) |CallMe(t2) -> Node(Tcall, StringLeaf($1)::t2::[])}
+NOTHING_OR_CALL -> {Dont(NullLeaf)}
+NOTHING_OR_CALL -> SYM_LPARENTHESIS LCALLPARAMS SYM_RPARENTHESIS {CallMe(Node(Targs, $2))}
+
 
 MUL_EXPRS -> SYM_ASTERISK MUL_EXPR MUL_EXPRS {(Tmul, $2):: $3}
 MUL_EXPRS -> SYM_DIV MUL_EXPR MUL_EXPRS {(Tdiv, $2)::$3}

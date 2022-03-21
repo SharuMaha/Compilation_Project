@@ -48,6 +48,7 @@ let rec rtl_instrs_of_cfg_expr (next_reg, var2reg) (e: expr) =
         |Eint(i) -> (next_reg, [Rconst(next_reg, i)], next_reg+1, var2reg)
         |Evar(s) -> let a,b,c = find_var (next_reg, var2reg) s in (a,[],b,c)
         |Eunop(uop, expr) -> let (r,rl,nr,vr) = rtl_instrs_of_cfg_expr (next_reg,var2reg) expr in (nr,rl @ [Runop(uop, nr, r)], nr+1, vr)
+        |Ecall(str,argl) -> let (rlapr,nrapr,varpr,regl) = List.fold_left ( fun (rl, nr, vr, rgl) x -> let (r1,rl1,nr1,vr1) = rtl_instrs_of_cfg_expr (nr, vr) x in (rl@rl1,nr1,vr1, rgl@[r1])) ([],next_reg,var2reg,[]) argl in (nrapr, rlapr @[Rcall(Some nrapr,str, regl)],nrapr+1,varpr)
 
 let is_cmp_op =
   function Eclt -> Some Rclt

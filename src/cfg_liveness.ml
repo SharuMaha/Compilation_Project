@@ -12,6 +12,7 @@ let rec vars_in_expr (e: expr) =
         | Eunop (uop, e) -> vars_in_expr e
         | Eint i -> Set.empty
         | Evar s -> Set.singleton s
+        | Ecall(str,argl) -> List.fold_left (fun acc exp -> Set.union acc (vars_in_expr exp) ) (Set.singleton str) argl
 
 
 (* [live_cfg_node node live_after] renvoie l'ensemble des variables vivantes
@@ -23,6 +24,7 @@ let live_cfg_node (node: cfg_node) (live_after: string Set.t) =
    |Creturn(exp) ->Set.union (vars_in_expr exp) live_after
    |Cprint(exp,i) ->Set.union (vars_in_expr exp) live_after
    |Ccmp(exp, i, i2) ->Set.union (vars_in_expr exp) live_after
+   |Ccall(str, argl, i) -> Set.union (vars_in_expr (Ecall(str,argl))) live_after
    |_ -> live_after
 
 (* [live_after_node cfg n] renvoie l'ensemble des variables vivantes après le

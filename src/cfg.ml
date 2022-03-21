@@ -9,6 +9,7 @@ type expr =
   | Eunop of unop * expr
   | Eint of int
   | Evar of string
+  | Ecall of string * expr list
 
 type cfg_node =
   | Cassign of string * expr * int
@@ -16,6 +17,7 @@ type cfg_node =
   | Cprint of expr * int
   | Ccmp of expr * int * int
   | Cnop of int
+  | Ccall of string * expr list * int
 
 type cfg_fun = {
   cfgfunargs: string list;
@@ -36,6 +38,7 @@ let succs cfg n =
   | Some (Creturn _) -> Set.empty
   | Some (Ccmp (_, s1, s2)) -> Set.of_list [s1;s2]
   | Some (Cnop s) -> Set.singleton s
+  | Some (Ccall (_,_,s)) -> Set.singleton s
 
 
 (* [preds cfg n] donne l'ensemble des prédécesseurs d'un nœud [n] dans un CFG [cfg]
@@ -43,6 +46,7 @@ let succs cfg n =
 let preds cfgfunbody n =
   Hashtbl.fold (fun m m' acc ->
       match m' with
+      | Ccall (_,_,s)
       | Cassign (_, _, s)
       | Cprint (_, s)
       | Cnop s -> if s = n then Set.add m acc else acc
@@ -63,6 +67,7 @@ let rec size_expr (e: expr) : int =
   | Eunop (u, e) -> size_unop u (size_expr e)
   | Eint _ -> 1
   | Evar v -> 1
+  | Ecall (str,argl) -> 1 + List.fold_left (fun acc x -> acc+ size_expr x) 0 argl 
 
 let rec size_instr (i: cfg_node) : int =
   match (i : cfg_node) with
@@ -71,6 +76,7 @@ let rec size_instr (i: cfg_node) : int =
   | Cprint (e, s) -> 1 + (size_expr e)
   | Ccmp (e, s1, s2) -> 1 + size_expr e
   | Cnop s -> 1
+  | Ccall (str,argl,s) -> 1 + List.fold_left (fun acc x -> acc+ (size_expr x)) 0 argl
 
 let size_fun f =
   Hashtbl.fold (fun k v acc -> acc + size_instr v) f 0

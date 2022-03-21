@@ -323,9 +323,9 @@ let ltl_instrs_of_linear_instr fname live_out allocation
     load_loc reg_tmp1 allocation r >>= fun (l,r) ->
     OK (l @ [LMov (reg_ret, r) ; LJmp epilogue_label])
   | Rlabel l -> OK [LLabel (Format.sprintf "%s_%d" fname l)]
-  | Rcall (rd, callee_fname, rargs) -> (caller_save live_out allocation rargs >>= fun set_to_save -> let (save_reg_instrs, arg_saved, ofs) = save_caller_save (Set.elements set_to_save) numspilled in pass_parameters rargs allocation arg_saved>>= fun (param_pass_instrs, npush)-> OK([LCall(callee_fname);
+  | Rcall (rd, callee_fname, rargs) -> (caller_save live_out allocation rargs >>= fun set_to_save -> let (save_reg_instrs, arg_saved, ofs) = save_caller_save (Set.elements set_to_save) (-numspilled) in pass_parameters rargs allocation arg_saved>>= fun (param_pass_instrs, npush)-> OK([LCall(callee_fname);
   LAddi(reg_sp,reg_sp,npush);
-  let rd_propre = match rd with |Some r -> r |None -> failwith "rd est bizarre" in match Hashtbl.find_option allocation rd_propre with |None -> failwith "Alloc de rd pas trouvé" |Some (Reg rs) -> LMov(rs, reg_a0) | Some (Stk o) -> LStore(reg_a0, (Archi.wordsize()) * o, reg_fp, (archi_mas ()))  -> failwith "Registre de retour qui est spilled"] @
+  let rd_propre = match rd with |Some r -> r |None -> failwith "rd est bizarre" in match Hashtbl.find_option allocation rd_propre with |None -> failwith "Alloc de rd pas trouvé" |Some (Reg rs) -> LMov(rs, reg_a0) | Some (Stk o) -> LStore(reg_a0, (Archi.wordsize()) * o, reg_fp, (archi_mas ()))] @
  let rd_propre = match rd with | Some r -> r |None -> failwith "rd encore bizarre" in match Hashtbl.find_option allocation rd_propre with |None -> failwith "rd est très bizarre" | Some (Stk o ) -> restore_caller_save arg_saved | Some (Reg rs) -> restore_caller_save (List.filter (fun (x,y) -> x <> rs) arg_saved) 
   )
   ) in

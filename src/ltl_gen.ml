@@ -215,19 +215,19 @@ let written_rtl_regs_instr (i: rtl_instr) =
   | Rbinop (_, rd, _, _)
   | Runop (_, rd, _)
   | Rconst (rd, _)
+  | Rcall(Some rd,_,_)
   | Rmov (rd, _) -> Set.singleton rd
-  | Rprint _
   | Rret _
   | Rlabel _
   | Rbranch (_, _, _, _)
+  | Rcall(None,_,_)
   | Rjmp _ -> Set.empty
 
 let read_rtl_regs_instr (i: rtl_instr) =
   match i with
   | Rbinop (_, _, rs1, rs2)
   | Rbranch (_, rs1, rs2, _) -> Set.of_list [rs1; rs2]
-
-  | Rprint rs
+  
   | Runop (_, _, rs)
   | Rmov (_, rs)
   | Rret rs -> Set.singleton rs
@@ -235,6 +235,7 @@ let read_rtl_regs_instr (i: rtl_instr) =
   | Rlabel _
   | Rconst (_, _)
   | Rjmp _ -> Set.empty
+  | Rcall(_,_,argl) -> Set.of_list argl
 
 let read_rtl_regs (l: rtl_instr list) =
   List.fold_left (fun acc i -> Set.union acc (read_rtl_regs_instr i))
@@ -301,34 +302,22 @@ let ltl_instrs_of_linear_instr fname live_out allocation
     load_loc reg_tmp1 allocation rs >>= fun (ls, rs) ->
     store_loc reg_tmp1 allocation rd >>= fun (ld, rd) ->
     OK (ls @ LMov(rd, rs) :: ld)
-  | Rprint r ->
-    let (save_a_regs, arg_saved, ofs) =
-      save_caller_save
-        (range 32)
-        (- (numspilled+1)) in
-    let parameter_passing =
-      match Hashtbl.find_option allocation r with
-      | None -> Error (Format.sprintf "Could not find allocation for register %d\n" r)
-      | Some (Reg rs) -> OK [LMov(reg_a0, rs)]
-      | Some (Stk o) -> OK [LLoad(reg_a0, reg_fp, (Archi.wordsize ()) * o, (archi_mas ()))]
-    in
-    parameter_passing >>= fun parameter_passing ->
-    OK (LComment "Saving a0-a7,t0-t6" :: save_a_regs @
-        LAddi(reg_sp, reg_s0, (Archi.wordsize ()) * (ofs + 1)) ::
-        parameter_passing @
-        LCall "print" ::
-        LComment "Restoring a0-a7,t0-t6" :: restore_caller_save arg_saved)
 
   | Rret r ->
     load_loc reg_tmp1 allocation r >>= fun (l,r) ->
     OK (l @ [LMov (reg_ret, r) ; LJmp epilogue_label])
   | Rlabel l -> OK [LLabel (Format.sprintf "%s_%d" fname l)]
-  | Rcall (rd, callee_fname, rargs) -> (caller_save live_out allocation rargs >>= fun set_to_save -> let (save_reg_instrs, arg_saved, ofs) = save_caller_save (Set.elements set_to_save) (-numspilled) in pass_parameters rargs allocation arg_saved>>= fun (param_pass_instrs, npush)-> OK([LCall(callee_fname);
+  | Rcall (Some rd, callee_fname, rargs) -> (caller_save live_out allocation rargs >>= fun set_to_save -> let (save_reg_instrs, arg_saved, ofs) = save_caller_save (Set.elements set_to_save) (-numspilled) in pass_parameters rargs allocation arg_saved>>= fun (param_pass_instrs, npush)-> OK([LCall(callee_fname);
   LAddi(reg_sp,reg_sp,npush);
-  let rd_propre = match rd with |Some r -> r |None -> failwith "rd est bizarre" in match Hashtbl.find_option allocation rd_propre with |None -> failwith "Alloc de rd pas trouvé" |Some (Reg rs) -> LMov(rs, reg_a0) | Some (Stk o) -> LStore(reg_a0, (Archi.wordsize()) * o, reg_fp, (archi_mas ()))] @
- let rd_propre = match rd with | Some r -> r |None -> failwith "rd encore bizarre" in match Hashtbl.find_option allocation rd_propre with |None -> failwith "rd est très bizarre" | Some (Stk o ) -> restore_caller_save arg_saved | Some (Reg rs) -> restore_caller_save (List.filter (fun (x,y) -> x <> rs) arg_saved) 
-  )
-  ) in
+  let rd_propre = match Some rd with |Some r -> r |None -> failwith "rd est bizarre" in match Hashtbl.find_option allocation rd_propre with |None -> failwith "Alloc de rd pas trouvé" |Some (Reg rs) -> LMov(rs, reg_a0) | Some (Stk o) -> LStore(reg_a0, (Archi.wordsize()) * o, reg_fp, (archi_mas ()))] @
+ let rd_propre = match Some rd with | Some r -> r |None -> failwith "rd encore bizarre" in match Hashtbl.find_option allocation rd_propre with |None -> failwith "rd est très bizarre" | Some (Stk o ) -> restore_caller_save arg_saved | Some (Reg rs) -> restore_caller_save (List.filter (fun (x,y) -> x <> rs) arg_saved) 
+  ))
+  | Rcall (None,callee_fname,rargs) -> (caller_save live_out allocation rargs >>= fun set_to_save -> let (save_reg_instrs, arg_saved, ofs) = save_caller_save (Set.elements set_to_save) (-numspilled) in pass_parameters rargs allocation arg_saved>>= fun (param_pass_instrs, npush)-> OK([LCall(callee_fname);
+  LAddi(reg_sp,reg_sp,npush)]@
+  restore_caller_save arg_saved
+  ))
+
+ in
   res >>= fun l ->
   OK (LComment (Format.asprintf "#<span style=\"background: pink;\"><b>Linear instr</b>: %a #</span>" (Rtl_print.dump_rtl_instr fname (None, None)) ins)::l)
 (** Retrieves the location of the n-th argument (in the callee). The first 8 are

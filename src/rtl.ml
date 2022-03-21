@@ -17,7 +17,6 @@ type rtl_instr = Rbinop of binop * reg * reg * reg
                | Rmov of reg * reg
                | Rret of reg
                | Rlabel of int
-               | Rprint of reg
                | Rcall of reg option * string * reg list
 
 type rtl_fun = { rtlfunargs: reg list;
@@ -32,7 +31,6 @@ let written_rtl_regs_instr (i: rtl_instr) =
   | Runop (_, rd, _)
   | Rconst (rd, _)
   | Rmov (rd, _) -> Set.singleton rd
-  | Rprint _
   | Rret _
   | Rlabel _
   | Rbranch (_, _, _, _)

@@ -27,7 +27,7 @@ let rec eval_cfgexpr st (e: expr) : (int*int state) res =
       | Some v -> OK (v,st)
       | None -> Error (Printf.sprintf "Unknown variable %s\n" s)
     end
-  | Ecall(str,argl) -> let evaluator acc x = match eval_cfgexpr (snd acc) x with |OK v -> (fst acc @ (fst v)::[],snd v) |_ -> failwith "evaluation de la liste d'arguments a fail" in let vargs_st = List.fold_left evaluator ([],st) argl  in let f = match find_function cp str with |OK fu -> fu |_-> failwith "Error en cherchant une fonction called" in (match eval_cfgfun oc (snd vargs_st) str f (fst vargs_st) with |OK (Some resul, st) -> OK(resul,st) |_ -> failwith "L'evaluation de la fonction appelée en tant qu'expression n'a soit pas renvoyé de valeur soit eval_efun a foiré")
+  | Ecall(str,argl) -> let evaluator acc x = match eval_cfgexpr (snd acc) x with |OK v -> (fst acc @ (fst v)::[],snd v) |_ -> failwith "evaluation de la liste d'arguments a fail" in let vargs_st = List.fold_left evaluator ([],st) argl in match do_builtin oc (snd vargs_st).mem str (fst vargs_st) with |OK( Some a) -> OK(a, st) |_ ->  let f = match find_function cp str with |OK fu -> fu |_-> failwith "Error en cherchant une fonction called" in (match eval_cfgfun oc (snd vargs_st) str f (fst vargs_st) with |OK (Some resul, st) -> OK(resul,st) |_ -> failwith "L'evaluation de la fonction appelée en tant qu'expression n'a soit pas renvoyé de valeur soit eval_efun a foiré")
  
 
 and eval_cfginstr oc st ht (n: int): (int * int state) res =
@@ -47,11 +47,8 @@ and eval_cfginstr oc st ht (n: int): (int * int state) res =
     | Creturn(e) ->
       eval_cfgexpr st e >>= fun e ->
       OK ((fst e), st)
-    | Cprint(e, succ) ->
-      eval_cfgexpr st e >>= fun e ->
-      Format.fprintf oc "%d\n" (fst e);
-      eval_cfginstr oc st ht succ
-    | Ccall(str, argl, succ) -> eval_cfgexpr st (Ecall(str,argl)) >>= fun callres -> eval_cfginstr oc st ht succ
+    | Ccall (str,argl, succ) -> let evaluator acc x = match eval_cfgexpr (snd acc) x with |OK v -> (fst acc @ (fst v)::[],snd v) |_ -> failwith "evaluation de la liste d'arguments a fail" in let vargs_st = List.fold_left evaluator ([],st) argl in match do_builtin oc (snd vargs_st).mem str (fst vargs_st) with |OK(a) -> eval_cfginstr oc st ht succ |_ -> let f = match find_function cp str with |OK fu -> fu |_-> failwith "Error en cherchant une fonction called" in (match eval_cfgfun oc (snd vargs_st) str f (fst vargs_st) with |OK (Some resul, st) -> eval_cfginstr oc st ht succ |_ -> failwith "L'evaluation de la fonction appelée en tant qu'expression n'a soit pas renvoyé de valeur soit eval_efun a foiré")  
+  (*  | Ccall(str, argl, succ) -> eval_cfgexpr st (Ecall(str,argl)) >>= fun callres -> eval_cfginstr oc st ht succ *)
 
 and eval_cfgfun oc st cfgfunname { cfgfunargs;
                                       cfgfunbody;

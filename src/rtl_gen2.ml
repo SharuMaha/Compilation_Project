@@ -30,7 +30,7 @@ open Options
 let find_var (next_reg, var2reg) v =
   match List.assoc_opt v var2reg with
     | Some r -> (r, next_reg, var2reg)
-    | None -> (next_reg, next_reg + 1, (v,next_reg)::var2reg)
+    | None -> (next_reg, next_reg + 1, assoc_set var2reg v next_reg)
 
 (* [rtl_instrs_of_cfg_expr (next_reg, var2reg) e] construit une liste
    d'instructions RTL correspondant à l'évaluation d'une expression E.
@@ -43,19 +43,14 @@ let find_var (next_reg, var2reg) v =
    - [var2reg] est la nouvelle association nom de variable/registre.
 *)
 let rec rtl_instrs_of_cfg_expr (next_reg, var2reg) (e: expr) =
-  match e with
-  | Ebinop (b, e1, e2) ->
-    let ret_reg, l, next_reg, var2reg = rtl_instrs_of_cfg_expr (next_reg, var2reg) e1 in
-    let ret_reg2, l2, next_reg, var2reg = rtl_instrs_of_cfg_expr (next_reg, var2reg) e2 in
-    (next_reg, Rbinop (b, next_reg, ret_reg, ret_reg2) ::l@l2, next_reg +1, var2reg )
-  | Eunop (u, e) ->
-    let ret_reg, l, next_reg, var2reg = rtl_instrs_of_cfg_expr (next_reg, var2reg) e in
-    (next_reg, Runop(u, next_reg, ret_reg)::l, next_reg +1, var2reg)
-  | Eint i ->
-    (next_reg, [Rconst(next_reg, i)], next_reg +1, var2reg)
-  | Evar v ->
-    let r, next_reg, var2reg = find_var (next_reg, var2reg) v in (r, [], next_reg, var2reg)
-  | Ecall (fname, e_list) ->
+        match e with
+        |Ebinop(bop, expr1, expr2) -> let (r1,rl1,nr1,vr1) = rtl_instrs_of_cfg_expr (next_reg, var2reg) expr1 in let (r2,rl2,nr2,vr2) = rtl_instrs_of_cfg_expr (nr1,vr1) expr2 in (nr2, rl1 @ rl2 @ [Rbinop(bop, nr2, r1, r2)], nr2+1, vr2)
+        |Eint(i) -> (next_reg, [Rconst(next_reg, i)], next_reg+1, var2reg)
+        |Evar(s) -> let a,b,c = find_var (next_reg, var2reg) s in (a,[],b,c)
+        |Eunop(uop, expr) -> let (r,rl,nr,vr) = rtl_instrs_of_cfg_expr (next_reg,var2reg) expr in (nr,rl @ [Runop(uop, nr, r)], nr+1, vr)
+(*        |Ecall(str,argl) -> let (rlapr,nrapr,varpr,regl) = List.fold_left ( fun (rl, nr, vr, rgl) x ->
+                    let (r1,rl1,nr1,vr1) = rtl_instrs_of_cfg_expr (nr, vr) x in (rl@rl1,nr1,vr1, rgl@[r1])) ([],next_reg,var2reg,[]) argl in (nrapr, rlapr @[Rcall(Some (nrapr),str, regl)],nrapr+1,varpr) *)
+        | Ecall (fname, e_list) ->
     let (l, next_reg, var2reg),rargs = List.fold_left_map (
       fun (l, next_reg, var2reg) cfg_expr ->
         let (ret, inst, next_reg, var2reg) = rtl_instrs_of_cfg_expr (next_reg, var2reg) cfg_expr in
@@ -83,28 +78,13 @@ let rtl_cmp_of_cfg_expr (e: expr) =
 
 
 let rtl_instrs_of_cfg_node ((next_reg:int), (var2reg: (string*int) list)) (c: cfg_node) =
-  match c with
-  | Cassign(v, e, s) ->
-    let ret_reg, l, next_reg, var2reg = rtl_instrs_of_cfg_expr (next_reg, var2reg) e in
-    let r, next_reg, var2reg = find_var (next_reg, var2reg) v in
-    (Rjmp s :: Rmov(r, ret_reg)::l, next_reg, var2reg)
-  | Ccmp(e, s, s2) ->
-    let cmp, e1, e2 = rtl_cmp_of_cfg_expr e in
-    let ret_reg, l, next_reg, var2reg = rtl_instrs_of_cfg_expr (next_reg, var2reg) e1 in
-    let ret_reg2, l2, next_reg, var2reg = rtl_instrs_of_cfg_expr (next_reg, var2reg) e2 in
-    ( Rjmp s2 :: Rbranch(cmp, ret_reg, ret_reg2, s) ::l@l2, next_reg, var2reg)
-  | Creturn e ->
-    let ret_reg, l, next_reg, var2reg = rtl_instrs_of_cfg_expr (next_reg, var2reg) e in
-    (Rret(ret_reg)::l, next_reg, var2reg)
-  | Cnop s -> ([Rjmp s], next_reg, var2reg)
-  | Ccall( fname, e_list, s) ->
-    let (l, next_reg, var2reg),rargs = List.fold_left_map (
-      fun (l, next_reg, var2reg) cfg_expr ->
-        let (ret, inst, next_reg, var2reg) = rtl_instrs_of_cfg_expr (next_reg, var2reg) cfg_expr in
-        ((inst @ l, next_reg, var2reg), ret)
-        ) ([], next_reg, var2reg) e_list in
-    (Rjmp s :: Rcall (None, fname, rargs) :: l, next_reg +1, var2reg)
-
+        match c with
+        |Cassign(str,expr,i) ->let (r,rl,nr,vr) = rtl_instrs_of_cfg_expr (next_reg, var2reg) expr  in let (r2,nr2,vr2) = find_var (nr,vr) str in (rl @ [Rmov(r2, r);Rjmp(i)], nr2, vr2)
+        |Creturn(expr) -> let (r,rl,nr,vr) = rtl_instrs_of_cfg_expr (next_reg, var2reg) expr in ( rl@ [Rret(r)], nr,vr)
+        |Ccall(str, exprl,i) -> let (r, rl, nr, vr) = rtl_instrs_of_cfg_expr (next_reg,var2reg) (Ecall(str, exprl)) in (rl @ [Rjmp(i)], nr,vr)
+        |Cnop(i) -> ([Rjmp(i)], next_reg, var2reg)
+        |Ccmp(expr, i1, i2 ) -> let (rop, e1, e2) = rtl_cmp_of_cfg_expr expr in let (r1,rl1,nr1,vr1) = rtl_instrs_of_cfg_expr (next_reg,var2reg) e1 in let (r2,rl2,nr2,vr2)= rtl_instrs_of_cfg_expr (nr1,vr1) e2 in (rl1@rl2 @ [Rbranch(rop, r1, r2,i1)] @[Rjmp(i2)], nr2,vr2)
+   
 
 let rtl_instrs_of_cfg_fun cfgfunname ({ cfgfunargs; cfgfunbody; cfgentry }: cfg_fun) =
   let (rargs, next_reg, var2reg) =
@@ -117,7 +97,7 @@ let rtl_instrs_of_cfg_fun cfgfunname ({ cfgfunargs; cfgfunbody; cfgentry }: cfg_
   let rtlfunbody = Hashtbl.create 17 in
   let (next_reg, var2reg) = Hashtbl.fold (fun n node (next_reg, var2reg)->
       let (l, next_reg, var2reg) = rtl_instrs_of_cfg_node (next_reg, var2reg) node in
-      Hashtbl.replace rtlfunbody n (List.rev l);
+      Hashtbl.replace rtlfunbody n l;
       (next_reg, var2reg)
     ) cfgfunbody (next_reg, var2reg) in
   {

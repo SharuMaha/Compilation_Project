@@ -67,7 +67,7 @@ let rec make_einstr_of_ast (a: tree) : instr res =
     |Node(Tblock,linstr) ->let get_instr x = match (make_einstr_of_ast x) with |OK v -> v |_ -> failwith "Erreur avec une instr du block"
                            in  OK(Iblock(List.map get_instr linstr))
     |Node(Treturn, [e]) ->make_eexpr_of_ast e >>= fun eres -> OK(Ireturn(eres))
-    |Node(Tprint, [e]) ->make_eexpr_of_ast e >>= fun eres -> OK(Iprint(eres))
+
     |Node(Tif, cond::prem::[]) -> make_eexpr_of_ast cond >>= fun condres -> make_einstr_of_ast prem >>= fun premres -> OK(Iif(condres,premres,Iblock([])))
     |Node(Tif, cond::prem::sec::[]) ->make_eexpr_of_ast cond >>= fun condres -> make_einstr_of_ast prem >>= fun premres -> make_einstr_of_ast sec >>= fun secres -> OK(Iif(condres, premres, secres))
 

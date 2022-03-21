@@ -39,8 +39,9 @@ let dump_rtl_instr name (live_in, live_out) oc (i: rtl_instr) =
     Format.fprintf oc "jmp %s" (print_node s)
   | Rmov (rd, rs) -> Format.fprintf oc "%s <- %s" (print_reg rd) (print_reg rs)
   | Rret r -> Format.fprintf oc "ret %s" (print_reg r)
-  | Rprint r -> Format.fprintf oc "print %s" (print_reg r)
   | Rlabel n -> Format.fprintf oc "%s_%d:" name n
+  | Rcall(Some reg, str,regl) -> Format.fprintf oc "%s <- %s(%s)" (print_reg reg) str (String.concat "," (List.map (fun x -> print_reg x) regl))
+  | Rcall(None,str,regl) -> Format.fprintf oc "%s(%s)" str (String.concat "," (List.map(fun x -> print_reg x) regl))
   end;
   Format.fprintf oc "\n";
   dump_liveness live_out "after"

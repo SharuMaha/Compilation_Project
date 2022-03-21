@@ -23,7 +23,7 @@ open BatPrintf
 
 *)
 
-type tag = Tassign | Tif | Telse | Twhile | Tblock | Treturn | Tprint
+type tag = Tassign | Tif | Telse | Twhile | Tblock | Treturn 
          | Tint
          | Tadd | Tmul | Tdiv | Tmod | Txor | Tsub
          | Tclt | Tcgt | Tcle | Tcge | Tceq | Tne
@@ -54,7 +54,6 @@ let string_of_tag = function
   | Twhile -> "Twhile"
   | Tblock -> "Tblock"
   | Treturn -> "Treturn"
-  | Tprint -> "Tprint"
   | Tint -> "Tint"
   | Tadd -> "Tadd"
   | Tmul -> "Tmul"

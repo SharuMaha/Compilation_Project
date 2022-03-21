@@ -22,7 +22,6 @@ let live_cfg_node (node: cfg_node) (live_after: string Set.t) =
    match node with
    |Cassign(str,exp,i) ->Set.union (Set.diff live_after (Set.singleton str)) (vars_in_expr exp)
    |Creturn(exp) ->Set.union (vars_in_expr exp) live_after
-   |Cprint(exp,i) ->Set.union (vars_in_expr exp) live_after
    |Ccmp(exp, i, i2) ->Set.union (vars_in_expr exp) live_after
    |Ccall(str, argl, i) -> Set.union (vars_in_expr (Ecall(str,argl))) live_after
    |_ -> live_after

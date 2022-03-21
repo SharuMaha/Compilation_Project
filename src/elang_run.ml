@@ -44,7 +44,7 @@ let rec eval_eexpr st (e : expr) : (int * int state) res  =
    |Eint(inte) -> OK (inte,st)
    |Evar(s) -> (match Hashtbl.find_option st.env s with |Some intres -> OK(intres,st) |_ -> Error "Unknown variable a")
    |Ebinop(bop,e1,e2) ->eval_eexpr st e1 >>= fun e1res -> eval_eexpr st e2 >>= fun e2res ->Printf.printf "%d %d\n" (fst e1res) (fst e2res); OK (eval_binop bop (fst e1res) (fst e2res), st)
-   |Ecall(str, argl) -> let evaluator acc x = match eval_eexpr (snd acc) x with |OK v -> (fst acc @ (fst v)::[],snd v) |_ -> failwith "evaluation de la liste d'arguments a fail" in let vargs_st = List.fold_left evaluator ([],st) argl  in let f = match find_function ep str with |OK fu -> fu |_-> failwith "Error en cherchant une fonction called" in (match eval_efun oc (snd vargs_st) f str (fst vargs_st) with |OK (Some resul, st) -> OK(resul,st) |_ -> failwith "L'evaluation de la fonction appelée en tant qu'expression n'a soit pas renvoyé de valeur soit eval_efun a foiré")
+   |Ecall(str, argl) -> let evaluator acc x = match eval_eexpr (snd acc) x with |OK v -> (fst acc @ (fst v)::[],snd v) |_ -> failwith "evaluation de la liste d'arguments a fail" in let vargs_st = List.fold_left evaluator ([],st) argl in match do_builtin oc (snd vargs_st).mem str (fst vargs_st) with |OK( Some a) -> OK(a, st) |_ -> let f = match find_function ep str with |OK fu -> fu |_-> failwith  str in (match eval_efun oc (snd vargs_st) f str (fst vargs_st) with |OK (Some resul, st) -> OK(resul,st) |_ -> failwith "L'evaluation de la fonction appelée en tant qu'expression n'a soit pas renvoyé de valeur soit eval_efun a foiré")
 
 
 (* [eval_einstr oc st ins] évalue l'instrution [ins] en partant de l'état [st].
@@ -69,9 +69,10 @@ and eval_einstr oc (st: int state) (ins: instr) :
    |Iblock([]) -> OK(None,st)
    |Iblock(ins1::rinstr) -> eval_einstr oc st ins1 >>= fun insres1 -> (match fst insres1 with |None -> eval_einstr oc (snd insres1) (Iblock(rinstr))|Some ret -> OK insres1 )
    |Ireturn(exp) -> eval_eexpr st exp >>= fun expres -> OK(Some (fst expres), st) 
-   |Iprint(exp) -> eval_eexpr st exp >>= fun expres -> Format.fprintf oc "%d\n" (fst expres); OK(None,st)
-   |Icall(str, expl) -> eval_eexpr st (Ecall(str,expl)) >>= fun callres -> OK(None, snd callres)
+   |Icall(str,expl) -> let evaluator acc x = match eval_eexpr (snd acc) x with |OK v -> (fst acc @ (fst v)::[],snd v) |_ -> failwith "evaluation de la list d'arguments a fail" in let vargs_st = List.fold_left evaluator([],st) expl in match do_builtin oc (snd vargs_st).mem str (fst vargs_st) with |OK (Some a) -> OK(Some a,snd vargs_st) |OK(None) -> OK(None, snd vargs_st) |_ -> let f = match find_function ep str with |OK fu -> fu |_ -> failwith str in (match eval_efun oc (snd vargs_st) f str (fst vargs_st) with |OK (Some resul, st) -> OK(None,st) |_ -> failwith "L'eval de la fonction appelée en tant qu'instruction a foiré")
+(*   |Icall(str, expl) -> eval_eexpr st (Ecall(str,expl)) >>= fun callres -> OK(None, snd callres) *)
 (*   |Iprint(exp) -> OK(None,st) *)
+
 
 (* [eval_efun oc st f fname vargs] évalue la fonction [f] (dont le nom est
    [fname]) en partant de l'état [st], avec les arguments [vargs].

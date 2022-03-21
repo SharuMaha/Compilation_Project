@@ -1,6 +1,20 @@
 open Batteries
 open Utils
 
+
+type typ =
+  Tint
+| Tchar
+| Tvoid
+
+
+let string_of_typ t =
+match t with
+| Tint -> "int"
+| Tchar -> "char"
+| Tvoid -> "void"
+
+
 type mem_access_size =
   | MAS1
   | MAS4

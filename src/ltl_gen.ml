@@ -307,15 +307,22 @@ let ltl_instrs_of_linear_instr fname live_out allocation
     load_loc reg_tmp1 allocation r >>= fun (l,r) ->
     OK (l @ [LMov (reg_ret, r) ; LJmp epilogue_label])
   | Rlabel l -> OK [LLabel (Format.sprintf "%s_%d" fname l)]
-  | Rcall (Some rd, callee_fname, rargs) -> (caller_save live_out allocation rargs >>= fun set_to_save -> let (save_reg_instrs, arg_saved, ofs) = save_caller_save (Set.elements set_to_save) (-numspilled) in pass_parameters rargs allocation arg_saved>>= fun (param_pass_instrs, npush)-> OK([LCall(callee_fname);
-  LAddi(reg_sp,reg_sp,npush);
-  let rd_propre = match Some rd with |Some r -> r |None -> failwith "rd est bizarre" in match Hashtbl.find_option allocation rd_propre with |None -> failwith "Alloc de rd pas trouvé" |Some (Reg rs) -> LMov(rs, reg_a0) | Some (Stk o) -> LStore(reg_a0, (Archi.wordsize()) * o, reg_fp, (archi_mas ()))] @
+(*  | Rcall (Some rd, callee_fname, rargs) -> (caller_save live_out allocation rargs >>= fun set_to_save -> let (save_reg_instrs, arg_saved, ofs) = save_caller_save (Set.elements set_to_save) (-numspilled-1) in pass_parameters rargs allocation arg_saved>>= fun (param_pass_instrs, npush)-> OK([LCall(callee_fname);
+  LAddi(reg_sp,reg_sp,(Archi.wordsize() *(npush)));
+  let rd_propre = match Some rd with |Some r -> r |None -> failwith "rd est bizarre" in match Hashtbl.find_option allocation rd_propre with |None -> failwith "Alloc de rd pas trouvé" |Some (Reg rs) -> LMov(rs, reg_a0) | Some (Stk o) -> LStore(reg_fp, (Archi.wordsize()) * o, reg_a0, (archi_mas ()))] @
  let rd_propre = match Some rd with | Some r -> r |None -> failwith "rd encore bizarre" in match Hashtbl.find_option allocation rd_propre with |None -> failwith "rd est très bizarre" | Some (Stk o ) -> restore_caller_save arg_saved | Some (Reg rs) -> restore_caller_save (List.filter (fun (x,y) -> x <> rs) arg_saved) 
   ))
   | Rcall (None,callee_fname,rargs) -> (caller_save live_out allocation rargs >>= fun set_to_save -> let (save_reg_instrs, arg_saved, ofs) = save_caller_save (Set.elements set_to_save) (-numspilled) in pass_parameters rargs allocation arg_saved>>= fun (param_pass_instrs, npush)-> OK([LCall(callee_fname);
-  LAddi(reg_sp,reg_sp,npush)]@
+  LAddi(reg_sp,reg_sp,(Archi.wordsize() *(npush)))]@
   restore_caller_save arg_saved
   ))
+*)
+  | Rcall(Some rd, callee_fname, rargs) -> caller_save live_out allocation rargs >>= fun reg_to_save -> let save_regs_ins, arg_saved, ofs = save_caller_save (Set.to_list reg_to_save) (-numspilled-1) in pass_parameters rargs allocation arg_saved >>= fun (parameter_passing_instrs, npush) -> 
+                  let truc_a_faire,rest_cond = (match Hashtbl.find_option allocation rd with |Some (Reg rs) -> (LMov(rs,reg_a0),Some rs) | Some(Stk o) -> (LStore(reg_fp, (Archi.wordsize ()) * o, reg_a0, (archi_mas ())), None)) in OK(save_regs_ins @ LAddi(reg_sp,reg_s0, Archi.wordsize() * (ofs+1))::parameter_passing_instrs @ LCall(callee_fname) :: LAddi(reg_sp, reg_s0, (Archi.wordsize () * (npush)))::truc_a_faire:: restore_caller_save (match rest_cond with |None -> arg_saved | Some rs -> List.remove_assoc rs arg_saved))
+
+| Rcall(None, callee_fname, rargs) -> caller_save live_out allocation rargs >>= fun reg_to_save
+-> let save_regs_ins, arg_saved, ofs = save_caller_save (Set.to_list reg_to_save) (-numspilled-1) in pass_parameters rargs allocation arg_saved >>= fun (parameter_passing_instrs, npush) ->       
+                  OK(save_regs_ins @ LAddi(reg_sp,reg_s0, Archi.wordsize() * (ofs+1))::parameter_passing_instrs @ LCall(callee_fname) :: LAddi(reg_sp, reg_s0, (Archi.wordsize () * (npush)))::restore_caller_save arg_saved)
 
  in
   res >>= fun l ->

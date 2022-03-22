@@ -38,11 +38,13 @@ rules
 S -> FUNDEFS SYM_EOF {  Node (Tlistglobdef, $1) }
 FUNDEFS -> FUNDEF FUNDEFS {Node(Tfundef,$1)::$2}
 FUNDEFS -> {[]}
-FUNDEF ->  SYM_IDENTIFIER SYM_LPARENTHESIS LPARAMS SYM_RPARENTHESIS BLOC { StringLeaf($1)::Node(Tfunargs, $3)::$5::[] }
-LPARAMS -> SYM_IDENTIFIER REST_PARAMS { Node(Targ, [StringLeaf($1)]) :: $2 }
+FUNDEF -> TYPE SYM_IDENTIFIER SYM_LPARENTHESIS LPARAMS SYM_RPARENTHESIS BLOC { StringLeaf($2)::Node(Tfunargs, $4)::$6::[] }
+LPARAMS -> TYPE SYM_IDENTIFIER REST_PARAMS { Node(Targ, [StringLeaf($2)]) :: $3 }
 LPARAMS -> {[]}
-REST_PARAMS -> SYM_COMMA SYM_IDENTIFIER REST_PARAMS { Node(Targ, [StringLeaf($2)]) :: $3 }
+REST_PARAMS -> SYM_COMMA TYPE SYM_IDENTIFIER REST_PARAMS { Node(Targ, [StringLeaf($3)]) :: $4 }
 REST_PARAMS -> {[]}
+
+TYPE -> {[]}
 
 LCALLPARAMS -> EXPR CALLREST_PARAMS { $1::$2 }
 LCALLPARAMS -> {[]}

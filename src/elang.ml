@@ -22,6 +22,7 @@ type instr =
   | Iblock of instr list
   | Ireturn of expr
   | Icall of string * expr list
+  | Iinit of string * string
 
 type efun = {
   funargs: ( string *typ ) list;

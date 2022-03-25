@@ -15,6 +15,7 @@ non-terminals EQ_EXPRS EQ_EXPR
 non-terminals LCALLPARAMS CALLREST_PARAMS
 non-terminals ASSIGN_OR_CALL NOTHING_OR_CALL
 non-terminals TYPE INIT_HOW
+non-terminals BLOC_OR_INIT
 axiom S
 {
 
@@ -39,7 +40,12 @@ rules
 S -> FUNDEFS SYM_EOF {  Node (Tlistglobdef, $1) }
 FUNDEFS -> FUNDEF FUNDEFS {Node(Tfundef,$1)::$2}
 FUNDEFS -> {[]}
-FUNDEF -> TYPE SYM_IDENTIFIER SYM_LPARENTHESIS LPARAMS SYM_RPARENTHESIS BLOC { Node(Ttype,[StringLeaf($1)])::StringLeaf($2)::Node(Tfunargs, $4)::$6::[] }
+FUNDEF -> TYPE SYM_IDENTIFIER SYM_LPARENTHESIS LPARAMS SYM_RPARENTHESIS BLOC_OR_INIT { Node(Ttype,[StringLeaf($1)])::StringLeaf($2)::[Node(Tfunargs, $4)] @ $6 }
+BLOC_OR_INIT -> BLOC {[$1]}
+BLOC_OR_INIT -> SYM_SEMICOLON {[NullLeaf]}
+
+
+
 LPARAMS -> TYPE SYM_IDENTIFIER REST_PARAMS { Node(Targ, [Node(Ttype,[StringLeaf($1)]);StringLeaf($2)]) :: $3 }
 LPARAMS -> {[]}
 REST_PARAMS -> SYM_COMMA TYPE SYM_IDENTIFIER REST_PARAMS { Node(Targ, [Node(Ttype,[StringLeaf($2)]);StringLeaf($3)]) :: $4 }

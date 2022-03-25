@@ -25,7 +25,9 @@ let rec cfg_expr_of_eexpr (e: Elang.expr) : expr res =
   | Elang.Eint i -> OK (Eint i)
   | Elang.Evar v ->
     OK (Evar v)
+  | Elang.Echar c -> OK (Eint(Char.code c))
   | Elang.Ecall (str,argl) -> let matcheur x = match cfg_expr_of_eexpr x with |OK v -> v |_ -> failwith "probleme pour convertir argument d'un ecall de Eexpr en ecall de Cfg" in OK ( Ecall (str, List.map matcheur argl))
+
 
 
 (* [cfg_node_of_einstr next cfg succ i] builds the CFG node(s) that correspond
@@ -69,7 +71,7 @@ let rec cfg_node_of_einstr (next: int) (cfg : (int, cfg_node) Hashtbl.t)
     cfg_expr_of_eexpr e >>= fun e ->
     Hashtbl.replace cfg next (Creturn e); OK (next, next + 1)
   | Elang.Icall (str, argl) -> let matcheur x = match cfg_expr_of_eexpr x with |OK v -> v |_ -> failwith "probleme pour convertir argument d'un ecall de Eexpr en ecall de Cfg" in let expr = Ccall (str, List.map matcheur argl, succ) in Hashtbl.replace cfg next expr; OK(next,next+1)
-
+  | Elang.Iinit (t,s) -> Hashtbl.replace cfg next (Cnop(succ)); OK(next,next+1)
 
 (* Some nodes may be unreachable after the CFG is entirely generated. The
    [reachable_nodes n cfg] constructs the set of node identifiers that are
@@ -94,9 +96,10 @@ let cfg_fun_of_efun { funargs; funbody } =
   Hashtbl.replace cfg 0 (Creturn (Eint 0));
   cfg_node_of_einstr 1 cfg 0 funbody >>= fun (node, _) ->
   (* remove unreachable nodes *)
+  let fargs_var = List.map (fun x -> fst x) funargs in
   let r = reachable_nodes node cfg in
   Hashtbl.filteri_inplace (fun k _ -> Set.mem k r) cfg;
-  OK { cfgfunargs = funargs;
+  OK { cfgfunargs = fargs_var;
        cfgfunbody = cfg;
        cfgentry = node;
      }

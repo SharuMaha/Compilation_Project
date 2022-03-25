@@ -61,6 +61,10 @@ let rec dump_einstr_rec indent oc i =
     print_spaces oc indent;
     Format.fprintf oc "%s(%s)\n" str (String.concat "," (List.map (fun x -> dump_eexpr x) argl))
 
+  | Iinit(typ,str) ->
+    print_spaces oc indent;
+    Format.fprintf oc "%s %s;\n" typ str
+
 let dump_einstr oc i = dump_einstr_rec 0 oc i
 
 

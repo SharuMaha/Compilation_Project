@@ -117,14 +117,14 @@ let make_ident (a: tree) : (string *typ) res =
   | a -> Error (Printf.sprintf "make_ident: unexpected AST: %s"
                   (string_of_ast a))
 
-let make_fundef_of_ast (a: tree) (typ_fun : (string, typ list * typ) Hashtbl.t) : (string * efun) res =
+let make_fundef_of_ast (a: tree) (typ_fun : (string, typ list * typ) Hashtbl.t) : (string * efun) option res  =
   match a with
-  | Node (Tfundef, [Node(Ttype,[StringLeaf(t)]);StringLeaf fname; Node (Tfunargs, fargs); NullLeaf]) -> let typ_var = Hashtbl.create 20 in list_map_res make_ident fargs >>= fun fargs ->let fargs_typ = List.map( fun x -> snd x) fargs in Hashtbl.replace typ_fun fname (fargs_typ,(typ_of_string t));List.iter(fun (str,typ)-> Hashtbl.replace typ_var str typ) fargs ; OK(fname, {funargs = fargs; funbody = Iblock([]); funvartyp = typ_var;funrettype = (typ_of_string t) })
+  | Node (Tfundef, [Node(Ttype,[StringLeaf(t)]);StringLeaf fname; Node (Tfunargs, fargs); NullLeaf]) -> let typ_var = Hashtbl.create 20 in list_map_res make_ident fargs >>= fun fargs ->let fargs_typ = List.map( fun x -> snd x) fargs in Hashtbl.replace typ_fun fname (fargs_typ,(typ_of_string t));List.iter(fun (str,typ)-> Hashtbl.replace typ_var str typ) fargs ;OK(None)
   | Node (Tfundef, [Node(Ttype,[StringLeaf(t)]);StringLeaf fname; Node (Tfunargs, fargs); fbody]) ->
-                  let typ_var = Hashtbl.create 20 in list_map_res make_ident fargs >>= fun fargs ->let fargs_typ = List.map( fun x -> snd x) fargs in Hashtbl.replace typ_fun fname (fargs_typ,(typ_of_string t));List.iter(fun (str,typ)-> Hashtbl.replace typ_var str typ) fargs ;make_einstr_of_ast fbody typ_var typ_fun >>= fun fbodyres -> OK(fname, {funargs = fargs; funbody = fbodyres; funvartyp = typ_var;funrettype = (typ_of_string t) })
+                  let typ_var = Hashtbl.create 20 in list_map_res make_ident fargs >>= fun fargs ->let fargs_typ = List.map( fun x -> snd x) fargs in Hashtbl.replace typ_fun fname (fargs_typ,(typ_of_string t));List.iter(fun (str,typ)-> Hashtbl.replace typ_var str typ) fargs ;make_einstr_of_ast fbody typ_var typ_fun >>= fun fbodyres -> OK (Some(fname, {funargs = fargs; funbody = fbodyres; funvartyp = typ_var;funrettype = (typ_of_string t) }))
   | _ ->
     Error (Printf.sprintf "make_fundef_of_ast: Expected a Tfundef, got %s."
-             (string_of_ast a))
+             (string_of_ast a)) 
 
 let make_eprog_of_ast (a: tree) : eprog res =
   match a with
@@ -133,7 +133,7 @@ let make_eprog_of_ast (a: tree) : eprog res =
         Hashtbl.replace typ_fun "print" ([Tint], Tvoid);
         Hashtbl.replace typ_fun "print_int" ([Tint], Tvoid);
         Hashtbl.replace typ_fun "print_char" ([Tchar], Tvoid);
-    list_map_res (fun a -> make_fundef_of_ast a typ_fun >>= fun (fname, efun) -> OK (fname, Gfun efun)) l
+    list_map_res (fun a -> make_fundef_of_ast a typ_fun >>= fun (fname,  efun) -> OK (fname, Gfun efun)) l
   | _ ->
     Error (Printf.sprintf "make_fundef_of_ast: Expected a Tlistglobdef, got %s."
              (string_of_ast a))

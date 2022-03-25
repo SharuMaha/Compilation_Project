@@ -23,7 +23,7 @@ open BatPrintf
 
 *)
 
-type tag = Tassign | Tif | Telse | Twhile | Tblock | Treturn 
+type tag = Tassign | Tif | Telse | Twhile | Tblock | Treturn |Tinit
          | Tint
          | Tadd | Tmul | Tdiv | Tmod | Txor | Tsub
          | Tclt | Tcgt | Tcle | Tcge | Tceq | Tne
@@ -33,6 +33,7 @@ type tag = Tassign | Tif | Telse | Twhile | Tblock | Treturn
          | Tassignvar
          | Targ 
          | Tcall | Targs
+         | Ttype
 
 type tree = | Node of tag * tree list
             | StringLeaf of string
@@ -77,7 +78,8 @@ let string_of_tag = function
   | Targ -> "Targ"
   | Tcall -> "Tcall"
   | Targs -> "Targs"
-
+  | Ttype -> "Ttype"
+  | Tinit -> "Tinit"
 
 (* Écrit un fichier .dot qui correspond à un AST *)
 let rec draw_ast a next =

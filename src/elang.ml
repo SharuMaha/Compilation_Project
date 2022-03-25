@@ -13,6 +13,7 @@ type expr =
   | Eint of int
   | Evar of string
   | Ecall of string * expr list
+  | Echar of char
 
 type instr =
   | Iassign of string * expr
@@ -23,8 +24,10 @@ type instr =
   | Icall of string * expr list
 
 type efun = {
-  funargs: ( string ) list;
+  funargs: ( string *typ ) list;
   funbody: instr;
+  funvartyp : (string,typ) Hashtbl.t;
+  funrettype : typ; 
 }
 
 type eprog = efun prog

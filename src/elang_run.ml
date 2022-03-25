@@ -89,7 +89,8 @@ and eval_efun oc (st: int state) ({ funargs; funbody}: efun)
      seulement ses arguments), puis on restore l'environnement de l'appelant. *)
   let env_save = Hashtbl.copy st.env in
   let env = Hashtbl.create 17 in
-  match List.iter2 (fun a v -> Hashtbl.replace env a v) funargs vargs with
+  let fargs_var = List.map (fun x -> fst x) funargs in
+  match List.iter2 (fun a v -> Hashtbl.replace env a v) fargs_var vargs with
   | () ->
                   eval_einstr oc { st with env } funbody >>= fun (v, st') ->
     OK (v, { st' with env = env_save })

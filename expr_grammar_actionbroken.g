@@ -1,4 +1,3 @@
-
 tokens SYM_EOF SYM_IDENTIFIER<string> SYM_INTEGER<int> SYM_PLUS SYM_MINUS SYM_ASTERISK SYM_DIV SYM_MOD SYM_CHARACTER<char>
 tokens SYM_LPARENTHESIS SYM_RPARENTHESIS SYM_LBRACE SYM_RBRACE
 tokens SYM_ASSIGN SYM_SEMICOLON SYM_RETURN SYM_IF SYM_WHILE SYM_ELSE SYM_COMMA 
@@ -13,8 +12,8 @@ non-terminals MUL_EXPRS MUL_EXPR
 non-terminals CMP_EXPRS CMP_EXPR
 non-terminals EQ_EXPRS EQ_EXPR
 non-terminals LCALLPARAMS CALLREST_PARAMS
-non-terminals ASSIGN_OR_CALL NOTHING_OR_CALL
-non-terminals TYPE INIT_HOW
+non-terminals ASSIGN_OR_CALL NOTHING_OR_CALL JUST_ASSIGN
+non-terminals TYPE
 axiom S
 {
 
@@ -27,7 +26,10 @@ axiom S
 
   type call_me_maybe =
 	| CallMe of tree
-	| Dont of tree
+	| Dont_and_assign of tree
+	| Dont_and_init
+	
+
   let rec resolve_associativity (term : Ast.tree) other : Ast.tree =
        	match other with
 	|[] -> term
@@ -39,38 +41,37 @@ rules
 S -> FUNDEFS SYM_EOF {  Node (Tlistglobdef, $1) }
 FUNDEFS -> FUNDEF FUNDEFS {Node(Tfundef,$1)::$2}
 FUNDEFS -> {[]}
-FUNDEF -> TYPE SYM_IDENTIFIER SYM_LPARENTHESIS LPARAMS SYM_RPARENTHESIS BLOC { Node(Ttype,[StringLeaf($1)])::StringLeaf($2)::Node(Tfunargs, $4)::$6::[] }
-LPARAMS -> TYPE SYM_IDENTIFIER REST_PARAMS { Node(Targ, [Node(Ttype,[StringLeaf($1)]);StringLeaf($2)]) :: $3 }
+FUNDEF -> TYPE SYM_IDENTIFIER SYM_LPARENTHESIS LPARAMS SYM_RPARENTHESIS BLOC { StringLeaf($2)::Node(Tfunargs, $4)::$6::[] }
+LPARAMS -> TYPE SYM_IDENTIFIER REST_PARAMS { Node(Targ, [StringLeaf($2)]) :: $3 }
 LPARAMS -> {[]}
-REST_PARAMS -> SYM_COMMA TYPE SYM_IDENTIFIER REST_PARAMS { Node(Targ, [Node(Ttype,[StringLeaf($2)]);StringLeaf($3)]) :: $4 }
+REST_PARAMS -> SYM_COMMA TYPE SYM_IDENTIFIER REST_PARAMS { Node(Targ, [StringLeaf($3)]) :: $4 }
 REST_PARAMS -> {[]}
 
 TYPE -> SYM_VOID {"void"}
 TYPE -> SYM_INT {"int"}
 TYPE -> SYM_CHAR {"char"}
 
+
 LCALLPARAMS -> EXPR CALLREST_PARAMS { $1::$2 }
 LCALLPARAMS -> {[]}
 CALLREST_PARAMS -> SYM_COMMA EXPR CALLREST_PARAMS { $2::$3 }
 CALLREST_PARAMS -> {[]}
 
-INSTR -> TYPE SYM_IDENTIFIER INIT_HOW {[Node(Tinit, [Node(Ttype,[StringLeaf($1)]) ; StringLeaf($2)])]@ (match $3 with |NullLeaf -> [] |_ -> [Node(Tassign, [Node(Tassignvar,StringLeaf($2)::[$3])])]) }
-INIT_HOW -> SYM_ASSIGN EXPR SYM_SEMICOLON {$2}
-INIT_HOW -> SYM_SEMICOLON {NullLeaf}
 
 
+INSTR -> TYPE SYM_IDENTIFIER ASSIGN_OR_CALL {match $3 with |CallMe(t1) -> Node(Tcall, StringLeaf($2)::t1::[]) |Dont_and_assign(t2) -> Node(Tassign, [Node(Tassignvar, Node(Ttype,[StringLeaf($1)])::StringLeaf($2)::[t2])]) |Dont_and_init -> Node(Tinit,[Node(Ttype, [StringLeaf($2)])]) }
 
+INSTR -> SYM_IDENTIFIER ASSIGN_OR_CALL {match $2 with |CallMe(t1) -> Node(Tcall, StringLeaf($1)::t1::[]) |Dont(t2) -> Node(Tassign, [Node(Tassignvar, StringLeaf($1)::[t2])]) }
 
+ASSIGN_OR_CALL -> SYM_ASSIGN EXPR SYM_SEMICOLON {Dont_and_assign($2)}
+ASSIGN_OR_CALL -> SYM_SEMICOLON {Dont_and_init}
 
-
-INSTR -> SYM_IDENTIFIER ASSIGN_OR_CALL {[match $2 with |CallMe(t1) -> Node(Tcall, StringLeaf($1)::t1::[]) |Dont(t2) -> Node(Tassign, [Node(Tassignvar, StringLeaf($1)::[t2])]) ]}
-ASSIGN_OR_CALL -> SYM_ASSIGN EXPR SYM_SEMICOLON {Dont($2)}
 ASSIGN_OR_CALL -> SYM_LPARENTHESIS LCALLPARAMS SYM_RPARENTHESIS SYM_SEMICOLON { CallMe(Node(Targs, $2))}
 
-INSTR -> SYM_IF SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS BLOC ELSE {[Node(Tif, $3::$5::$6)]}
-INSTR -> SYM_WHILE SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS INSTR {[Node(Twhile, $3::$5)]}
-INSTR -> SYM_RETURN EXPR SYM_SEMICOLON {[Node(Treturn, [$2])]}
-INSTR -> BLOC {[$1]}
+INSTR -> SYM_IF SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS BLOC ELSE {Node(Tif, $3::$5::$6)}
+INSTR -> SYM_WHILE SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS INSTR {Node(Twhile, $3::$5::[])}
+INSTR -> SYM_RETURN EXPR SYM_SEMICOLON {Node(Treturn, [$2])}
+INSTR -> BLOC {$1}
 
 EXPR -> EQ_EXPR EQ_EXPRS {resolve_associativity $1 $2}
 EQ_EXPR -> CMP_EXPR CMP_EXPRS {resolve_associativity $1 $2}
@@ -82,8 +83,8 @@ FACTOR -> SYM_INTEGER {IntLeaf($1)}
 FACTOR -> SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS {$2}
 FACTOR -> SYM_CHARACTER {CharLeaf($1)}
 
-FACTOR -> SYM_IDENTIFIER NOTHING_OR_CALL {match $2 with |Dont(t1) -> StringLeaf($1) |CallMe(t2) -> Node(Tcall, StringLeaf($1)::t2::[])}
-NOTHING_OR_CALL -> {Dont(NullLeaf)}
+FACTOR -> SYM_IDENTIFIER NOTHING_OR_CALL {match $2 with |Dont_and_assign(t1) -> StringLeaf($1) |CallMe(t2) -> Node(Tcall, StringLeaf($1)::t2::[])}
+NOTHING_OR_CALL -> {Dont_and_assign(NullLeaf)}
 NOTHING_OR_CALL -> SYM_LPARENTHESIS LCALLPARAMS SYM_RPARENTHESIS {CallMe(Node(Targs, $2))}
 
 
@@ -107,8 +108,9 @@ CMP_EXPRS -> {[]}
 
 ELSE -> SYM_ELSE BLOC {$2::[]}
 ELSE -> {[]}
-INSTRS -> INSTR INSTRS {$1 @ $2}
+INSTRS -> INSTR INSTRS {$1 :: $2}
 INSTRS -> {[]}
 BLOC -> SYM_LBRACE INSTRS SYM_RBRACE {Node(Tblock,$2)}
 IDENTIFIER -> SYM_IDENTIFIER {[]}
 INTEGER -> SYM_INTEGER {[]}
+ 

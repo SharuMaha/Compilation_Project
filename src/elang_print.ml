@@ -26,6 +26,7 @@ let rec dump_eexpr = function
   | Eunop(u, e) -> Printf.sprintf "(%s %s)" (dump_unop u) (dump_eexpr e)
   | Eint i -> Printf.sprintf "%d" i
   | Evar s -> Printf.sprintf "%s" s
+  | Echar c -> Printf.sprintf "%c" c
   | Ecall(str,argl) -> Printf.sprintf "%s(%s)" str (String.concat "," (List.map (fun x -> dump_eexpr x) argl))
 
 let indent_size = 2
@@ -64,9 +65,10 @@ let dump_einstr oc i = dump_einstr_rec 0 oc i
 
 
 let dump_efun oc funname {funargs; funbody} =
+  let fargs_wtyp = List.map (fun (str,typ) -> let str_space =  String.cat (string_of_typ typ) " " in String.cat str_space str) funargs in
   Format.fprintf oc "%s(%s) %a"
     funname
-    (String.concat "," funargs)
+    (String.concat "," fargs_wtyp)
     dump_einstr funbody
 
 let dump_eprog oc = dump_prog dump_efun oc

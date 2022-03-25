@@ -14,6 +14,12 @@ match t with
 | Tchar -> "char"
 | Tvoid -> "void"
 
+let typ_of_string t =
+match t with
+| "int" -> Tint
+| "char" -> Tchar
+| "void" -> Tvoid
+
 
 type mem_access_size =
   | MAS1

@@ -1,25 +1,30 @@
 open Batteries
 open Utils
-
+open Ast
 
 type typ =
   Tint
 | Tchar
 | Tvoid
+| Tptr of typ
 
-
-let string_of_typ t =
+let rec string_of_typ t =
 match t with
 | Tint -> "int"
 | Tchar -> "char"
 | Tvoid -> "void"
-
+| Tptr(t1) -> String.cat (string_of_typ t1) "*"
 let typ_of_string t =
 match t with
 | "int" -> Tint
 | "char" -> Tchar
 | "void" -> Tvoid
 
+let rec ptrtyp_of_string t imbric =
+        match imbric with
+        |[] -> Tptr(t)
+        |[Node(Tval, imbric2)] -> ptrtyp_of_string (Tptr(t)) imbric2
+        | _ -> failwith "ptrtyp_of_string est fait sur nimp"
 
 type mem_access_size =
   | MAS1
@@ -51,6 +56,13 @@ let archi_mas () =
   | A64 -> MAS8
   | A32 -> MAS4
 
+
+let size_type(t:typ) :int res =
+        match t with 
+        |Tptr (_)
+        |Tint -> OK(size_of_mas (archi_mas()))
+        |Tchar -> OK(1)
+        |_ -> failwith"Sorry je connais pas la taille de ton truc"
 
 type 'a gdef = Gfun of 'a
 

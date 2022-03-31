@@ -1,9 +1,9 @@
 # if make is launched with a DIR variable, pass it as the -f option to test.py
 # 'make DIR=basic/mul*.e' launches all the files starting with mul in the basic directory
 # otherwise, use basic/*.e as a default
-FILES := $(if $(DIR),$(DIR),type_basic/*.e type_funcall/*.e char/*.e)
+FILES := $(if $(DIR),$(DIR),type_basic/*.e type_funcall/*.e char/*.e ptr/*.e)
 
-OPTS := $(if $(OPTS), $(OPTS),)
+OPTS := -clever-regalloc $(if $(OPTS), $(OPTS),)
 
 .PHONY: all
 all: ../main.native

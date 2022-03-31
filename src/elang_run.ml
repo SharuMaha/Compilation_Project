@@ -5,6 +5,7 @@ open Prog
 open Utils
 open Builtins
 open Utils
+open Elang_gen
 
 let binop_bool_to_int f x y = if f x y then 1 else 0
 
@@ -38,14 +39,19 @@ exception Foo of string
 let eval_eprog oc (ep: eprog) (memsize: int) (params: int list)
   : int option res =
 
-let rec eval_eexpr st (e : expr) : (int * int state) res  =
+let rec eval_eexpr st (e : expr) funvarinmem (sp: int) : (int * int state) res  =
    match e with
-   |Eunop(un,exp) -> eval_eexpr st exp >>= fun evaleres -> OK(eval_unop un (fst evaleres),st)
+   |Eunop(un,exp) -> eval_eexpr st exp sp >>= fun evaleres -> OK(eval_unop un (fst evaleres),st)
    |Eint(inte) -> OK (inte,st)
    |Echar(c) -> OK (Char.code c,st)
    |Evar(s) -> (match Hashtbl.find_option st.env s with |Some intres -> OK(intres,st) |_ -> Error "Unknown variable a")
-   |Ebinop(bop,e1,e2) ->eval_eexpr st e1 >>= fun e1res -> eval_eexpr st e2 >>= fun e2res ->Printf.printf "%d %d\n" (fst e1res) (fst e2res); OK (eval_binop bop (fst e1res) (fst e2res), st)
-   |Ecall(str, argl) -> let evaluator acc x = match eval_eexpr (snd acc) x with |OK v -> (fst acc @ (fst v)::[],snd v) |_ -> failwith "evaluation de la liste d'arguments a fail" in let vargs_st = List.fold_left evaluator ([],st) argl in match do_builtin oc (snd vargs_st).mem str (fst vargs_st) with |OK( Some a) -> OK(a, st) |_ -> let f = match find_function ep str with |OK fu -> fu |_-> failwith  str in (match eval_efun oc (snd vargs_st) f str (fst vargs_st) with |OK (Some resul, st) -> OK(resul,st) |_ -> failwith "L'evaluation de la fonction appelée en tant qu'expression n'a soit pas renvoyé de valeur soit eval_efun a foiré")
+   |Ebinop(bop,e1,e2) ->eval_eexpr st e1 sp>>= fun e1res -> eval_eexpr st e2 sp>>= fun e2res ->Printf.printf "%d %d\n" (fst e1res) (fst e2res); OK (eval_binop bop (fst e1res) (fst e2res), st)
+
+(*   |Eaddrof(e) -> 
+   |Eload(e) -> 
+*)
+
+   |Ecall(str, argl) -> let evaluator acc x = match eval_eexpr (snd acc) x sp with |OK v -> (fst acc @ (fst v)::[],snd v) |_ -> failwith "evaluation de la liste d'arguments a fail" in let vargs_st = List.fold_left evaluator ([],st) argl in match do_builtin oc (snd vargs_st).mem str (fst vargs_st) with |OK( Some a) -> OK(a, st) |_ -> let f = match find_function ep str with |OK fu -> fu |_-> failwith  str in (match eval_efun oc (snd vargs_st) f str (fst vargs_st) sp with |OK (Some resul, st) -> OK(resul,st) |_ -> failwith "L'evaluation de la fonction appelée en tant qu'expression n'a soit pas renvoyé de valeur soit eval_efun a foiré")
 
 
 
@@ -61,18 +67,21 @@ let rec eval_eexpr st (e : expr) : (int * int state) res  =
    lieu et que l'exécution doit continuer.
 
    - [st'] est l'état mis à jour. *)
-and eval_einstr oc (st: int state) (ins: instr) :
+and eval_einstr oc (st: int state) (ins: instr) funvarinmem (sp :int):
   (int option * int state) res =
    match ins with
-   |Iassign(str,exp) -> eval_eexpr st exp>>= fun intres -> let x=Hashtbl.replace st.env str (fst intres) in OK(None,st)
-   |Iif(exp,ins1,ins2) -> eval_eexpr st exp >>= fun ifres -> Printf.printf "%d\n" (fst ifres);(match (fst ifres) with |0 -> eval_einstr oc st ins2 |_ -> eval_einstr oc st ins1)
-   |Iwhile(exp, ins1) ->Printf.printf "oupsi\n"; eval_eexpr st exp >>= fun whileres -> (match (fst whileres) with |0 ->OK(None, st) |_-> eval_einstr oc st (Iblock(ins1::ins::[])))
+   |Iassign(str,exp) -> eval_eexpr st exp sp >>= fun intres -> let x=Hashtbl.replace st.env str (fst intres) in OK(None,st)
+   |Iif(exp,ins1,ins2) -> eval_eexpr st exp sp >>= fun ifres -> Printf.printf "%d\n" (fst ifres);(match (fst ifres) with |0 -> eval_einstr oc st ins2 sp |_ -> eval_einstr oc st ins1 sp)
+   |Iwhile(exp, ins1) ->Printf.printf "oupsi\n"; eval_eexpr st exp sp >>= fun whileres -> (match (fst whileres) with |0 ->OK(None, st) |_-> eval_einstr oc st (Iblock(ins1::ins::[])) sp)
 (*   |Iblock(instrl) -> List.fold_left (fun acc elt -> (match acc with |OK (intopt,st1) ->  eval_einstr oc st1 elt|_ -> failwith "oulah, tu vas t'amuser a debugger ca")) (OK(None,st)) instrl *)
    |Iblock([]) -> OK(None,st)
    |Iinit(t,s) -> OK(None,st)
-   |Iblock(ins1::rinstr) -> eval_einstr oc st ins1 >>= fun insres1 -> (match fst insres1 with |None -> eval_einstr oc (snd insres1) (Iblock(rinstr))|Some ret -> OK insres1 )
-   |Ireturn(exp) -> eval_eexpr st exp >>= fun expres -> OK(Some (fst expres), st) 
-   |Icall(str,expl) -> let evaluator acc x = match eval_eexpr (snd acc) x with |OK v -> (fst acc @ (fst v)::[],snd v) |_ -> failwith "evaluation de la list d'arguments a fail" in let vargs_st = List.fold_left evaluator([],st) expl in match do_builtin oc (snd vargs_st).mem str (fst vargs_st) with |OK (Some a) -> OK(Some a,snd vargs_st) |OK(None) -> OK(None, snd vargs_st) |_ -> let f = match find_function ep str with |OK fu -> fu |_ -> failwith str in (match eval_efun oc (snd vargs_st) f str (fst vargs_st) with |OK (Some resul, st) -> OK(None,st) |_ -> failwith "L'eval de la fonction appelée en tant qu'instruction a foiré")
+   |Iblock(ins1::rinstr) -> eval_einstr oc st ins1 sp >>= fun insres1 -> (match fst insres1 with |None -> eval_einstr oc (snd insres1) (Iblock(rinstr)) sp|Some ret -> OK insres1 )
+   |Ireturn(exp) -> eval_eexpr st exp sp>>= fun expres -> OK(Some (fst expres), st)
+   
+   |Istore(e,v) -> eval_eexpr st v sp>>= fun vres -> let sz_to_store =  let to_store = split_bytes 4 (fst vres) in Hashtbl.replace funvarinmem (match (Mem.write_bytes (st.mem) sp to_store) with |OK () -> OK(None,st) | _ -> failwith "Ecriture en memoire a fail")
+
+   |Icall(str,expl) -> let evaluator acc x = match eval_eexpr (snd acc) x sp with |OK v -> (fst acc @ (fst v)::[],snd v) |_ -> failwith "evaluation de la list d'arguments a fail" in let vargs_st = List.fold_left evaluator([],st) expl in match do_builtin oc (snd vargs_st).mem str (fst vargs_st) with |OK (Some a) -> OK(Some a,snd vargs_st) |OK(None) -> OK(None, snd vargs_st) |_ -> let f = match find_function ep str with |OK fu -> fu |_ -> failwith str in (match eval_efun oc (snd vargs_st) f str (fst vargs_st) sp with |OK (Some resul, st) -> OK(None,st) |_ -> failwith "L'eval de la fonction appelée en tant qu'instruction a foiré")
 (*   |Icall(str, expl) -> eval_eexpr st (Ecall(str,expl)) >>= fun callres -> OK(None, snd callres) *)
 (*   |Iprint(exp) -> OK(None,st) *)
 
@@ -82,8 +91,8 @@ and eval_einstr oc (st: int state) (ins: instr) :
 
    Cette fonction renvoie un couple (ret, st') avec la même signification que
    pour [eval_einstr]. *)
-and eval_efun oc (st: int state) ({ funargs; funbody}: efun)
-    (fname: string) (vargs: int list)
+and eval_efun oc (st: int state) ({ funargs; funbody;funvarinmem;funvartyp}: efun)
+    (fname: string) (vargs: int list) (sp:int)
   : (int option * int state) res =
   (* L'environnement d'une fonction (mapping des variables locales vers leurs
      valeurs) est local et un appel de fonction ne devrait pas modifier les
@@ -95,7 +104,7 @@ and eval_efun oc (st: int state) ({ funargs; funbody}: efun)
   let fargs_var = List.map (fun x -> fst x) funargs in
   match List.iter2 (fun a v -> Hashtbl.replace env a v) fargs_var vargs with
   | () ->
-                  eval_einstr oc { st with env } funbody >>= fun (v, st') ->
+                  eval_einstr oc { st with env } funbody funvarinmem sp >>= fun (v, st') ->
     OK (v, { st' with env = env_save })
   | exception Invalid_argument _ ->
     Error (Format.sprintf
@@ -125,7 +134,7 @@ and eval_efun oc (st: int state) ({ funargs; funbody}: efun)
   (* ne garde que le nombre nécessaire de paramètres pour la fonction "main". *)
   let n = List.length f.funargs in
   let params = take n params in
-  eval_efun oc st f "main" params >>= fun (v, st) ->
+  eval_efun oc st f "main" params memsize >>= fun (v, st) ->
   match v with
   |Some a -> OK v
   |None -> Error "your prog is useless, dude"

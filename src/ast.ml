@@ -34,6 +34,8 @@ type tag = Tassign | Tif | Telse | Twhile | Tblock | Treturn |Tinit
          | Targ 
          | Tcall | Targs
          | Ttype
+         | Taddr | Tval
+         | Tid
 
 type tree = | Node of tag * tree list
             | StringLeaf of string
@@ -80,7 +82,9 @@ let string_of_tag = function
   | Targs -> "Targs"
   | Ttype -> "Ttype"
   | Tinit -> "Tinit"
-
+  | Tval -> "Tval"
+  | Taddr -> "Taddr"
+  | Tid -> "Tid"
 (* Écrit un fichier .dot qui correspond à un AST *)
 let rec draw_ast a next =
   match a with

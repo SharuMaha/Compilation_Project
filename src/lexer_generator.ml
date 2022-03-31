@@ -21,7 +21,7 @@ type 'a set = 'a Set.t
    - [nfa_step q] donne la liste des transitions depuis l'état [q] sous la
      forme d'une liste [Traduction d’expressions rationnelles(charset, q')]. [charset] est l'ensemble des caractères
      qui permettent de prendre la transition vers l'état [q']. [charset] peut
-     éventuellement être [None], ce qui indique une epsilon-transition. 
+     éventuellement être [None], ce qui indique une epsilon-transition.
 *)
 
 type nfa_state = int
@@ -64,13 +64,13 @@ let cat_nfa n1 n2 =
 
 (* Alternatives de NFAs *)
 let alt_nfa n1 n2 =
-  let all_states = n1.nfa_states @ n2.nfa_states in 
+  let all_states = n1.nfa_states @ n2.nfa_states in
    {
            nfa_states = all_states;
            nfa_initial = n1.nfa_initial @ n2.nfa_initial;
            nfa_final = n1.nfa_final @ n2.nfa_final;
            nfa_step = fun q -> (n1.nfa_step q) @ (n2.nfa_step q);
-      
+
    }
 
 (* Répétition de NFAs *)
@@ -78,17 +78,16 @@ let alt_nfa n1 n2 =
 let star_nfa n t =
    {
            nfa_states = n.nfa_states;
-           nfa_initial = List.map (fun x -> fst x) n.nfa_final;
+           nfa_initial = List.map fst n.nfa_final;
            nfa_final = n.nfa_final;
-           nfa_step = fun q -> if (List.exists ( fun e -> fst e = q) n.nfa_final) then (epsilon_toward n.nfa_initial) @ n.nfa_step q
-                               else n.nfa_step q
-   
+           nfa_step = fun q -> (if (List.exists ( fun e -> fst e = q) n.nfa_final) then epsilon_toward n.nfa_initial else [] )
+                                @ n.nfa_step q;
    }
 
 
 (* [nfa_of_regexp r freshstate t] construit un NFA qui reconnaît le même langage
    que l'expression régulière [r].
-   [freshstate] correspond à un entier pour lequel il n'y a pas encore d'état dans 
+   [freshstate] correspond à un entier pour lequel il n'y a pas encore d'état dans
    le nfa. Il suffit d'incrémenter [freshstate] pour obtenir de nouveaux états non utilisés.
    [t] est une fonction du type [string -> token option] utile pour les états finaux.
 *)
@@ -104,7 +103,7 @@ let rec nfa_of_regexp r freshstate t =
                 nfa_step = fun q -> if q = freshstate then [(Some c, freshstate + 1)] else []
               }, freshstate + 2
   | Cat (r1, r2) -> let nfa1 = nfa_of_regexp r1 freshstate t in
-                    let nfa2 = nfa_of_regexp r2 (snd nfa1) t in                  
+                    let nfa2 = nfa_of_regexp r2 (snd nfa1) t in
                     (cat_nfa (fst nfa1) (fst nfa2)), (snd nfa2)
   | Alt (reg1,reg2) -> let n1, fresh1 = nfa_of_regexp reg1 freshstate t in let n2, fresh2 = nfa_of_regexp reg2 fresh1 t in
                         let n = alt_nfa n1 n2 in
@@ -113,8 +112,7 @@ let rec nfa_of_regexp r freshstate t =
                         nfa_final = [fresh2+1, t];
                         nfa_step = fun q -> if q=fresh2 then (epsilon_toward n.nfa_initial) else if List.exists ( fun e -> fst e = q) n.nfa_final then (None, fresh2+1)::(n.nfa_step q) else n.nfa_step q
                           }, fresh2+2
-  | Star regexp -> let n, fresh = nfa_of_regexp regexp freshstate t in n, fresh
-
+  | Star regexp -> let n, fresh = nfa_of_regexp regexp freshstate t in star_nfa n t, fresh
 
 (* Deterministic Finite Automaton (DFA) *)
 
@@ -158,8 +156,8 @@ let epsilon_closure (n: nfa) (s: nfa_state) : nfa_state set =
           if (Set.mem s visited) then visited
           else
                 let eps_pos_tow = List.filter (fun a -> fst a=None) (n.nfa_step s) in let viss = Set.add s visited in
-         List.fold_left (fun acc elt -> let e=snd elt in traversal acc e) (viss) eps_pos_tow  
-                 
+         List.fold_left (fun acc elt -> let e=snd elt in traversal acc e) (viss) eps_pos_tow
+
   in
   traversal Set.empty s
 
@@ -265,32 +263,17 @@ let priority t =
 let min_priority (l: token list) : token option =
         match l with
         |[] -> None
-        | _ -> Some (List.fold(fun acc elt -> if (priority acc) > (priority elt) then elt else acc) SYM_EOF l)
-
-let max_priority (l: token list) : token option =
-        match l with
-        |[] -> None
-        | _ -> Some (List.fold(fun acc elt -> if (priority acc) <= (priority elt) then elt else acc) SYM_VOID l)
-        
+        | _ -> Some (List.fold (fun acc elt -> if (priority acc) > (priority elt) then elt else acc) SYM_EOF l)
 
 (* [dfa_final_states n dfa_states] renvoie la liste des états finaux du DFA,
    accompagnés du token qu'ils reconnaissent. *)
-
-let dfa_final_states (n: nfa) (dfa_states: dfa_state list) :
-  (dfa_state * (string -> token option)) list  =
-(*          let nfa_str state = List.filter_map (fun (elt, fu) -> if Set.mem elt state then Some f else Non) n.nfa_final in
-          if List.is_empty nfa_str state then None else
-                  let true_f x = min_priority (List.filter_map (fun m -> m x) nfa_str) in
-
-                  List.filter_map (fun state -> Some( *)
-
-          List.filter_map (fun dfa_s ->
+let dfa_final_states (n: nfa) (dfa_states: dfa_state list) : (dfa_state * (string -> token option)) list  =
+  List.filter_map (fun dfa_s ->
     let list_fun_tok = List.filter_map (fun (nfa_s,f) -> if Set.mem nfa_s dfa_s then Some f else None ) n.nfa_final in
       if List.is_empty list_fun_tok then (* the state is not final *) None else
       let f s = min_priority (List.filter_map (fun g -> g s) list_fun_tok)
       in Some (dfa_s, f)
-  ) dfa_states 
-
+  ) dfa_states
 
 
 
@@ -302,8 +285,6 @@ let make_dfa_step (table: (dfa_state, (char * dfa_state) list) Hashtbl.t) =
   fun (q: dfa_state) (a: char) ->
    let transition_opt = Hashtbl.find_option table q in
    Option.bind transition_opt (fun transition -> Option.bind (List.find_opt (fun e -> fst e = a) transition) (fun s -> Some (snd s) ))
-
-
 (* Finalement, on assemble tous ces morceaux pour construire l'automate. La
    fonction [dfa_of_nfa n] vous est grâcieusement offerte. *)
 let dfa_of_nfa (n: nfa) : dfa =
@@ -369,23 +350,17 @@ let tokenize_one (d : dfa) (w: char list) : lexer_result * char list =
   let rec recognize (q: dfa_state) (w: char list)
       (current_token: char list) (last_accepted: lexer_result * char list)
     : lexer_result * char list =
-(*            let posState = dfa <- dfa.step q w[0] in
-            if (posState = None) then 
-                    let last_accepted= (LRskip, w)
-            else
-                    let last_accepted= (LRtoken,w)
-*)                    
-      let last_accepted = match List.find_opt (fun e -> fst e = Set.empty) d.dfa_final with
-      | None -> last_accepted
-      | Some (s, f) -> match f (string_of_char_list (List.rev current_token)) with
+
+    let last_accepted = match List.find_opt (fun e -> fst e=q) d.dfa_final with (* Check if q is final*)
+      | None (* = not final*) -> last_accepted
+      | Some (s, f) -> match f (string_of_char_list (List.rev current_token)) with (* Check (if a)/what token is recognized*)
                     | None -> (LRskip, w)
                     | Some token -> (LRtoken token, w)
-    in match w with
+    in match w with  (* Check next char *)
         | [] -> last_accepted
-        | h::t -> match d.dfa_step q h with
+        | h::t -> match d.dfa_step q h with (* Check existance of next state *)
                   | None -> last_accepted
                   | Some next_q -> recognize next_q t (h::current_token) last_accepted
-
   in
   recognize d.dfa_initial w [] (LRerror, w)
 
@@ -445,7 +420,7 @@ let nfa_to_string (n : nfa) : string =
   Printf.sprintf "===== NFA\nStates : %s\nInitial states : %s\nFinal states : %s\n%s"
     (String.concat " " (List.map (fun q -> string_of_int q) n.nfa_states))
     (String.concat " " (List.map (fun q -> string_of_int q) n.nfa_initial))
-    (String.concat " " (List.map (fun (q,_) -> string_of_int q) n.nfa_final)) 
+    (String.concat " " (List.map (fun (q,_) -> string_of_int q) n.nfa_final))
     (String.concat ""
        (List.map (fun q ->
             let l = n.nfa_step q in
@@ -556,3 +531,4 @@ let file_contents file =
 
 let tokenize_file f =
   tokenize_list_regexp list_regexp (file_contents f)
+

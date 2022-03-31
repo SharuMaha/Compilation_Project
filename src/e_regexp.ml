@@ -66,6 +66,7 @@ let keyword_regexp s = str_regexp (char_list_of_string s)
 (* La liste des expressions régulières permettant d'identifier les tokens du langage E *)
 let list_regexp : (regexp * (string -> token option)) list =
   [
+    (char_regexp '&',         fun s -> Some(SYM_AMPERSAND));
     (keyword_regexp "while",    fun s -> Some (SYM_WHILE));
     (keyword_regexp "int", fun s -> Some (SYM_INT));
     (* begin TODO *)
